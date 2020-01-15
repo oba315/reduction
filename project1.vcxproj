@@ -144,11 +144,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bmpIO.cpp" />
+    <ClCompile Include="crossing_judgment_with_mapping.cpp" />
     <ClCompile Include="embree_process.cpp" />
     <ClCompile Include="externalSource\glad.c" />
     <ClCompile Include="image.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="matrix_tools.cpp" />
+    <ClCompile Include="MyScene.cpp" />
     <ClCompile Include="poly_reduction.cpp" />
     <ClCompile Include="testClass.cpp" />
   </ItemGroup>
@@ -157,7 +159,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bmpIO.h" />
+    <ClInclude Include="crossing_judgment_with_mapping.h" />
     <ClInclude Include="embree_process.h" />
+    <ClInclude Include="MyScene.h" />
     <ClInclude Include="my_structs.h" />
     <ClInclude Include="image.h" />
     <ClInclude Include="matrix_tools.h" />

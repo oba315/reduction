@@ -5,6 +5,7 @@
 #include "my_structs.h"
 #include "image.h"
 #include <iostream>
+#include "myScene.h"
 
 #ifndef IGL_NO_EIGEN
 #  include <Eigen/Core>

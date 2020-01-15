@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
+#include <iostream>
 
 //----------------------------------------------------------------------------
 
@@ -130,6 +131,11 @@ public:
 	bool operator != ( Vector3& b )
 	{
 		return !( b == *this );
+	}
+
+	// print
+	void print() {
+		std::cout << "[" << x << " " << y << " " << z << "]";
 	}
 };
 
