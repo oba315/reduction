@@ -1,5 +1,9 @@
 #include "MyScene.h"
 #include "vector3.h"
+#include <time.h>
+
+#include <igl/edge_flaps.h>
+
 
 #define NAME(var) std::cout << #var << std::endl;
 
@@ -22,8 +26,12 @@ MyObject::MyObject(std::string path, bool has_texture) {
 	// 各マップの初期化
 	int len = this->F.rows();
 	this->InflectionMAP = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
+	this->ReflectionMAP = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
 	this->VisibilityMAP = Eigen::VectorXd::Zero(len); // 0
+
+	
 }
+
 
 // -------------------------------------------------------------------
 void MyObject::print_info() {
@@ -37,10 +45,37 @@ void MyObject::print_info() {
 	std::cout << "geomID       : " << geomID << std::endl;
 	if (geomID != -1) std::cout << "    -> embreeのシーンに登録済みです" << std::endl;
 	std::cout << "material     : "<< std::endl;
-	std::cout << " - is_inflection: " << mat.transparency << std::endl;
+	std::cout << " - transparency : " << mat.transparency << std::endl;
 	std::cout << " - IOR          : " << mat.IOR << std::endl;
+	std::cout << " - reflectivity : " << mat.reflectivity << std::endl;
 	std::cout << "- - - - - - - - - - -" << std::endl;
 }//-------------------------------------------------------------------
+
+
+//--------------------------------------------------------------------
+void MyObject::model_checker()
+{
+	/* 四角以上の面が存在していないか */
+	if (F.cols() != 3) {
+		std::cout << "エラー：三角面以外で構成されています．" << std::endl;
+	}
+
+	/* 辺の両端に面が存在しているか */
+	Eigen::MatrixXi uE;
+	Eigen::VectorXi EMAP;
+	Eigen::MatrixXi EF;
+	Eigen::MatrixXi EI;
+	igl::edge_flaps(F, uE, EMAP, EF, EI);
+	for(int ii = 0; ii < EF.rows(); ii++ ){
+		for( int jj = 0; jj < EF.cols(); jj++ ){
+			if( EF(ii, jj) == -1 ) {
+				
+				std::cout << "辺" << ii << "が閉じていません F:" << EF(ii,0) << "/" << EF(ii,1) << std::endl;
+			}
+		}
+	}
+}//-------------------------------------------------------------------
+
 
 // --------------------------------------------------------------------
 void MyObject::set_geomID(int id) { geomID = id; }
@@ -92,8 +127,10 @@ void MyObject::add_to_embree_scene(RTCDevice &device, RTCScene &scene) {
 
 
 
+// シーンにオブジェクトを追加し、引数オブジェクトをシーン内のオブジェクトの参照に
 void MyScene::add_object_to_scene(MyObject &obj) {
-	object.push_back(obj);
+	object.push_back(&obj);
+	//return (this->object.back());
 }
 
 
@@ -111,13 +148,15 @@ void MyScene::scene_info() {
 	std::cout << " << object info >>" << std::endl;
 	std::cout << "number of object   : " << object.size() << std::endl;
 	for (int i = 0; i < object.size(); i++) {
-		object[i].print_info();
+		(*object[i]).print_info();
 	}
 	std::cout << "number of texture  : " << texture.size() << std::endl;
 	if (texture.size() != 0) {
 		for (int i = 0; i < texture.size(); i++) {
 			std::cout << "  - texture" << i << std::endl;
-			std::cout << "  - - size[" << texture[i].getWidth() << " " << texture[i].getHeight() << "]" << std::endl;
+			std::cout << "  - - address   : " << texture[i] << std::endl;
+			std::cout << "  - - size[" << (*texture[i]).getWidth() << " " << (*texture[i]).getHeight() << "]" << std::endl;
+			std::cout << "  - - type      : " << (*texture[i]).getType() << std::endl;
 		}
 	}
 	std::cout <<"- - - - - - - - - - - - - - " <<  std::endl;
@@ -125,21 +164,23 @@ void MyScene::scene_info() {
 
 void MyScene::add_to_embree_scene(RTCDevice &device, RTCScene &scene)
 {
+	this->rtcdevice_ptr = &device;
+	this->rtcscene_ptr = &scene;
 	for (int i = 0; i < this->object.size(); i++) {
-		this->object[i].add_to_embree_scene(device, scene);
+		(*this->object[i]).add_to_embree_scene(device, scene);
 	}
 }
 
 
 int MyScene::geomID_to_objectID(int id) {
 	for (int i = 0; i < object.size(); i++) {
-		if (object[i].get_geomID() == id) {
+		if ((*object[i]).get_geomID() == id) {
 			return (i);
 		}
 	}
 	std::cout << "geomID : " << id << "を持つオブジェクトが存在しません\n id : " << std::endl;
 	for (int i = 0; i < object.size(); i++) {
-		std::cout << object[i].get_geomID();
+		std::cout << (*object[i]).get_geomID();
 	}
 	std::cout << std::endl;
 	
@@ -151,18 +192,19 @@ int MyScene::add_texture(std::string path) {
 	
 	char* temppath = new char[path.size() + 1];
 	std::char_traits<char>::copy(temppath, path.c_str(), path.size() + 1);
-	Image tex;
-	if (tex.load(temppath) == false) {
+	Image *tex;
+	tex = new Image();
+	if (tex->load(temppath) == false) {
 		fprintf(stderr, "Cant read texture\n");
 		return(-1);
 	}
-
-	// できれば参照で渡したほうがよくね？
 	texture.push_back(tex);
 
 	// 仮出力
-	//char testname[] = "test.bmp";
-	//texture.save(testname);
+	char testname[] = "test.bmp";
+	std::cout << "KK" << texture[0]->getWidth() << std::endl;
+	std::cout << texture[0] << std::endl;
+	(*texture[0]).save(testname);
 	return 1;
 }
 
@@ -177,6 +219,9 @@ void MyScene::add_camera(Camera &cam) {
 	this->camera = cam;
 	this->camera_exist = true;
 }
+
+
+
 
 // - - - - - - 諸関数 - - - - - - - -
 

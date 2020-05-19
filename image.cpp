@@ -37,6 +37,14 @@ Colorub Image::getPixel(int i, int j)
 {
 	return(pixel[width*j+i]);
 }
+Colorub Image::getPixel(float i, float j) {
+	if (0<=i&&i<=1 && 0<=j&&j<= 1) {
+		int u = int(width * i);
+		int v = int(height * j);
+		return(pixel[width * v + u]);
+	}
+	else std::cout << "ERROR : imageのピクセルに対する不正なアクセスです．" << "u:" << i << " v:" << j << "\nRayの正規化を確認して下さい．"<< std::endl;
+}
 //----------------------------------------------------------------------------
 void Image::setPixel(int i, int j, Colorub c)
 {
@@ -75,4 +83,15 @@ bool Image::load(char *filename)
 
 	return(flag);
 }
+bool Image::load(std::string filename) {
+	char* temppath = new char[filename.size() + 1];
+	std::char_traits<char>::copy(temppath, filename.c_str(), filename.size() + 1);
+	load(temppath) == false;
+}
 //----------------------------------------------------------------------------
+void Image::setType(string name) {
+	type = name;
+}
+string Image::getType() {
+	return(type);
+}

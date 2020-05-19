@@ -21,3 +21,12 @@ void limited_area_poly_reduction(
 	bool is_remesh = true
 );
 
+void multiple_area_poly_reduction(
+	Eigen::MatrixXd& V,
+	Eigen::MatrixXi& F,
+	const Eigen::VectorXi& prim_mask, // 段階付き可視性マップ
+	const double ratio = 1,
+	bool is_remesh = true
+);
+
+void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F);

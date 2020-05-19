@@ -7,6 +7,7 @@
 #include <igl/remove_duplicate_vertices.h>
 #include <Eigen/Dense>
 #include "matrix_tools.h"
+#include <cassert>
 
 struct edge_info {
 	int index;					 // Eの何行目にあたるか
@@ -153,11 +154,12 @@ void poly_reduction(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const double ratio, 
 }
 
 // 範囲を指定してリダクション
+// prim_mask(0or1)が0の面から，順番に削減していく
 void limited_area_poly_reduction(
 	Eigen::MatrixXd& V,
 	Eigen::MatrixXi& F,
 	const Eigen::VectorXi& prim_mask,  // 面番号→可視性のマップ
-	const double ratio,
+	const double ratio,				   // prim_mask が0の部分のうち何割をさくげんするか
 	bool is_remesh
 ) {
 	std::cout << "範囲を指定してリダクション" << std::endl;
@@ -174,10 +176,11 @@ void limited_area_poly_reduction(
 		double cost = e;
 		Eigen::RowVectorXd p(1, 3);
 		igl::shortest_edge_and_midpoint(e, V, F, E, EMAP, EF, EI, cost, p);
+		
 		edge_info Qelement = { e, cost, p };
 		Q.push_back(Qelement);
 	}
-	std::sort(Q.begin(), Q.end(), cmp);		//比較関数cmpを使用してsort
+	std::sort(Q.begin(), Q.end(), cmp);		// 比較関数cmpを使用してsort
 
 	
 											// prim_maskから頂点のmaskを作成
@@ -194,9 +197,19 @@ void limited_area_poly_reduction(
 	// 最も短い辺から頂点を結合
 	// ただし位置を同じにするだけなので、面の再構成が必要
 	
-	// 省略の度合いは見えていない部分の中の割合で指定
-	//for (int i = 0; i < );
-	double max_iter = int( E.rows() * ratio );
+
+	// max_iter : 削減する辺の数
+	// prim_mask が0の部分のうち何割をさくげんするか
+	//double max_iter = int( E.rows() * ratio );
+	double maskcount = 0;
+	for (int i = 0; i < E.rows(); i++) {
+		if (vert_mask(E(Q[i].index, 0)) != 1 && vert_mask(E(Q[i].index, 1)) ) {
+			maskcount++;
+		}
+	}
+	double max_iter = int( maskcount * ratio );
+	
+	
 	std::cout << "max_iter : " << max_iter  << " / E.rows() : " << E.rows() << std::endl;
 
 	std::vector<int> collapsed_edge;
@@ -204,10 +217,18 @@ void limited_area_poly_reduction(
 	int count = 0;  // 省略された辺の数
 	while (count < max_iter) {
 		//std::cout << "cllps " << i << std::endl;
-		if (vert_mask(E(Q[i].index, 0)) != 1 && vert_mask(E(Q[i].index, 1)) != 1){
+		if (vert_mask(E(Q[i].index, 0)) != 1 && vert_mask(E(Q[i].index, 1)) != 1) /*辺の両端がマスク内の頂点かどうか*/{
+
+			//Eigen::MatrixXi uE;
+			//igl::edge_flaps(F, uE, EMAP, EF, EI);
+			//std::cout << "[" << Q[i].index  << "]" << EF(Q[i].index, 0) << "/" << EF(Q[i].index, 1) << std::endl;
+
 			igl::collapse_edge(Q[i].index, Q[i].midpoint, V, F, E, EMAP, EF, EI);
+			
 			collapsed_edge.push_back(Q[i].index);
 			count++;
+
+			//std::cout << count << std::endl ;
 		}
 		i++;
 		if (i >= E.rows()) {
@@ -221,4 +242,36 @@ void limited_area_poly_reduction(
 	if (is_remesh) {
 		remesh(V, F);
 	}
+}
+
+void multiple_area_poly_reduction(
+	Eigen::MatrixXd& V,
+	Eigen::MatrixXi& F,
+	const Eigen::VectorXi& prim_mask, // 段階付き可視性マップ
+	const double ratio,
+	bool is_remesh
+) {
+	int max = prim_mask.maxCoeff();
+
+	
+	Eigen::VectorXi new_mask = Eigen::VectorXi::Ones(prim_mask.rows());
+	for (int k = 1; k < 5; k++) {
+		for (int i = 0; i < prim_mask.rows(); i++) {
+			if (prim_mask(i) == k) {
+				new_mask(i) = 0;
+				// std::cout << k;
+			}
+		}
+		//std::cout << new_mask;
+		limited_area_poly_reduction(V, F, new_mask, 0.02 * k, false);
+	}
+
+	for (int i = 0; i < prim_mask.rows(); i++) {
+		if (prim_mask(i) == -1) {
+			new_mask(i) = 0;
+			// std::cout << -1;
+		}
+	}
+	//std::cout << new_mask;
+	limited_area_poly_reduction(V, F, new_mask, 0.5, false);
 }

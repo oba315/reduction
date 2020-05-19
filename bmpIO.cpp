@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <vector>
 #pragma warning(disable: 4996)
 
 //----------------------------------------------------------------------------
@@ -56,7 +57,7 @@ bool readBmpImage(char *filename, int *width, int *height, int *nchannel, unsign
     fread(&bmInfoHeader.biWidth, sizeof(unsigned long int), 1, fp);
     fread(&bmInfoHeader.biHeight, sizeof(unsigned long int), 1, fp);
     fread(&bmInfoHeader.biPlanes, sizeof(unsigned short int), 1, fp);
-    fread(&bmInfoHeader.biBitCount, sizeof(unsigned short int), 1, fp);
+    fread(&bmInfoHeader.biBitCount, sizeof(unsigned short int), 1, fp);		//色深度
     fread(&bmInfoHeader.biCompression, sizeof(unsigned long int), 1, fp);
     fread(&bmInfoHeader.biSizeImage, sizeof(unsigned long int), 1, fp);
     fread(&bmInfoHeader.biXPelsPerMeter, sizeof(unsigned long int), 1, fp);
@@ -68,16 +69,40 @@ bool readBmpImage(char *filename, int *width, int *height, int *nchannel, unsign
     *height = (int)bmInfoHeader.biHeight;
 	*nchannel = NUM_PLANE;
 
-    int bytes = (*width)*(*height)*sizeof(unsigned char)*NUM_PLANE;
-    if(*pixel == NULL) {
-        if((*pixel = (unsigned char *) malloc (bytes)) == NULL) {
-            fprintf(stderr, "can't malloc pixel.\n");
-            return(false);
-        }
-    }
+	// 現在、画像サイズに制限あり。
+	if (*width % 8 != 0 || *height % 8 != 0) {
+		fprintf(stderr, "Image size is not 8X.\n");
+		return(false);
+	}
 
-    /* ファイルからピクセルデータを一気に(bytesバイト分)読みこみます */
-    fread(*pixel, sizeof(unsigned char)*NUM_PLANE, (*width)*(*height), fp);
+	int bytes = (*width) * (*height) * sizeof(unsigned char) * NUM_PLANE;
+	if (*pixel == NULL) {
+		if ((*pixel = (unsigned char*)malloc(bytes)) == NULL) {
+			fprintf(stderr, "can't malloc pixel.\n");
+			return(false);
+		}
+	}
+
+	if (bmInfoHeader.biBitCount == 24) {
+		/* ファイルからピクセルデータを一気に(bytesバイト分)読みこみます */
+		fread(*pixel, sizeof(unsigned char) * NUM_PLANE, int(*width) * int(*height), fp);
+	}
+	// 色深度:32 : アルファを含むBMP
+	else if (bmInfoHeader.biBitCount == 32) {
+		/* アルファ情報は削除されます． */
+		std::vector<std::vector<unsigned char>> pixel_temp(int(*width) * int(*height), std::vector<unsigned char>(4));
+		fread(&pixel_temp[0], sizeof(unsigned char) * 4, int(*width) * int(*height), fp);
+		for (int i = 0; i < (*width) * (*height); i++) {
+			for (int j = 0; j < 3; j++) {
+				*pixel[j] = pixel_temp[i][j];
+			}
+		}
+	}
+	else {
+		fprintf(stderr, "color_depth is inappropriate.\n");
+		return(false);
+	}
+    
 
 	return(true);
 }

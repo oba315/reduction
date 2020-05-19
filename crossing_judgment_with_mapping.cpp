@@ -5,20 +5,29 @@ void inflection_crossing_judgement(
 	Colorub& pixel_color,			//return
 	RTCRayHit& prev_ray,
 	RTCScene& scene, MyScene& myscene,
-	int prev_obj_id);
+	int prev_obj_id,
+	int iteration);
 Colorub calc_color_with_texture(RTCRayHit& rayhit, MyScene& myscene, int obj_id);
 Vector3 get_normal(RTCRayHit& rayhit, MyScene &myscene, int obj_id);
+void reflection_crossing_judgement_test(
+	Colorub& pixel_color,			//return
+	RTCRayHit& prev_ray,
+	RTCScene& scene, MyScene& myscene,
+	int prev_obj_id,
+	int count, int i, int j, std::vector<Eigen::RowVector3d>& points);
+bool crossing_judgement_test(Image& image, RTCScene& scene, MyScene& myscene, int i, int j,
+	std::vector<Eigen::RowVector3d>& points);
 
 
 
 Vector3 get_normal(RTCRayHit& rayhit, MyScene &myscene, int obj_id) {
 	Vector3 nom;
-	if (!(myscene.object[obj_id].smooth_shading)) {
+	if (!((*myscene.object[obj_id]).smooth_shading)) {
 		nom = { rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z };
 	}
 	else {
 		float P[4] = { 0,0,0,0 };
-		RTCInterpolateArguments arg{ myscene.object[obj_id].geom, rayhit.hit.primID, rayhit.hit.u, rayhit.hit.v, RTC_BUFFER_TYPE_VERTEX, 0,
+		RTCInterpolateArguments arg{ (*myscene.object[obj_id]).geom, rayhit.hit.primID, rayhit.hit.u, rayhit.hit.v, RTC_BUFFER_TYPE_VERTEX, 0,
 			P, nullptr, nullptr, nullptr, nullptr, nullptr, 4 };
 		rtcInterpolate(&arg);
 		nom = { P[0], P[1], P[2] };
@@ -63,8 +72,8 @@ void inflection_crossing_judgement(
 			int prev_obj_id,
 			int iteration)
 {
-	double transparency = myscene.object[prev_obj_id].mat.transparency;
-	double IOR = myscene.object[prev_obj_id].mat.IOR;
+	double transparency = (*myscene.object[prev_obj_id]).mat.transparency;
+	double IOR = (*myscene.object[prev_obj_id]).mat.IOR;
 	// 新しいRAYを定義
 	struct RTCRayHit rayhit;
 
@@ -123,40 +132,14 @@ void inflection_crossing_judgement(
 
 	if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
 
-		Colorub col;
-
 		int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
 
-		//if (myscene.object[obj_id].VisibilityMAP(rayhit.hit.primID) < 1) {
-		//	myscene.object[obj_id].VisibilityMAP(rayhit.hit.primID) = 0.5
-		//}
-
-		// 屈折して到達：重み0.2
-		double temp = 1.0 - (0.2 * (double(iteration + 1)));
-		if (temp < 0) temp = 0;
-		myscene.object[obj_id].VisibilityMAP(rayhit.hit.primID) = temp;
-
-		// 到達した際の反射回数の中で最も小さいものを格納
-		int * infmap = &(myscene.object[obj_id].InflectionMAP(rayhit.hit.primID) );
+		// 到達した際の屈折回数の中で最も小さいものを格納
+		int * infmap = &((*myscene.object[obj_id]).InflectionMAP(rayhit.hit.primID) );
 		if (*infmap == -1 || *infmap > iteration + 1) *infmap = iteration + 1;
 
-		//std::cout << myscene.object[obj_id].VisibilityMAP(rayhit.hit.primID) << " ";
-		
-		// 輝度計算
-		/*
-		if (!(myscene.object[obj_id].has_texture)) {
-			col = myscene.object[obj_id].color;
-		}
-		else {
-			col = calc_color_with_texture(rayhit, myscene, obj_id);
-		}
-
-		//　色をミックス
-		mix(pixel_color, col, transparency);
-		*/
-
 		// 屈折の考慮
-		if (myscene.object[obj_id].mat.transparency != 0) {
+		if ((*myscene.object[obj_id]).mat.transparency != 0) {
 			inflection_crossing_judgement(
 				pixel_color,			//return
 				rayhit,
@@ -165,24 +148,108 @@ void inflection_crossing_judgement(
 			);
 		}
 	}
-	else {
-		Colorub bg = COL_BLACK;
-		mix(pixel_color, bg, transparency);
-	}
-	//std::cout << "R" << std::endl;
+	
+	// std::cout << "R" << std::endl;
 }
 
 
 
+// 反射時の交点計算
+// 反射回数はmyscene.reflecting_limitで制限される
+// 反射後の2回目以降の交点計算はここで行う。
+// 現在屈折とは(正確には)両立できない。
+void reflection_crossing_judgement(
+	Colorub& pixel_color,			//return
+	RTCRayHit& prev_ray,
+	RTCScene& scene, MyScene& myscene,
+	int prev_obj_id,
+	int count)
+{
+	double reflectivity = (*myscene.object[prev_obj_id]).mat.reflectivity;
+
+	// 新しいRAYを定義
+	struct RTCRayHit rayhit;
+
+	// レイの始点 
+	rayhit.ray.org_x = prev_ray.ray.org_x + (prev_ray.ray.tfar * prev_ray.ray.dir_x);
+	rayhit.ray.org_y = prev_ray.ray.org_y + (prev_ray.ray.tfar * prev_ray.ray.dir_y);
+	rayhit.ray.org_z = prev_ray.ray.org_z + (prev_ray.ray.tfar * prev_ray.ray.dir_z);
+
+	// 法線の取得
+	Vector3 nom = get_normal(prev_ray, myscene, prev_obj_id);
+
+	// ------- 反射した視線の計算 -------------------------------------------------------
+	Vector3 view(prev_ray.ray.dir_x, prev_ray.ray.dir_y, prev_ray.ray.dir_z);
+	view.normalize();
+
+	Vector3 R; // 反射した視線
+	R = view - (2. * (view.dot(nom)) * nom);
+	// -----------------------------------------------------------------------------------
+	
+	//if ((view + R).dot(nom) != 0) { std::cout << " / " << (view + R).dot(nom);}
+
+	
+	if (view.dot(nom) > 0) {
+		std::cout << "ERROR : " << count << " " << prev_ray.hit.primID << " ";
+		return;
+	}
+	
+
+	rayhit.ray.dir_x = R.x;
+	rayhit.ray.dir_y = R.y;
+	rayhit.ray.dir_z = R.z;
+
+	// 交差判定する範囲を指定 
+	rayhit.ray.tnear = 0.001f;     // 範囲の始点 //屈折率１の時0.0だとエラー
+
+	struct RTCIntersectContext context;
+	rtcInitIntersectContext(&context);
+
+	rayhit.ray.flags = false;
+	rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+	rayhit.ray.tfar = INFINITY;
+
+	// 交差判定
+	rtcIntersect1(scene, &context, &rayhit);
+	//std::cout <<"h" <<rayhit.hit.geomID;
+
+	if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
+
+		int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
+		MyObject* obj = myscene.object[obj_id];
+
+		// 到達した際の反射回数の中で最も小さいものを格納
+		int* infmap = &((*myscene.object[obj_id]).ReflectionMAP(rayhit.hit.primID));
+		if (*infmap == -1 || *infmap > count) {
+			
+			*infmap = count;
+		}
+		
+		
+		// 再度反射の考慮
+		if ((*obj).mat.reflectivity != 0 && myscene.reflecting_limit > count) {
+			reflection_crossing_judgement(
+				pixel_color,			//return
+				rayhit,
+				scene, myscene,
+				obj_id,
+				count + 1
+			);
+		}
+
+	}
+	
+	//std::cout << "R" << std::endl;
+}
 
 // テクスチャがある場合の輝度計算
 Colorub calc_color_with_texture(RTCRayHit &rayhit, MyScene &myscene, int obj_id) {
 	// uv座標を計算
-	Eigen::RowVectorXi ftc = myscene.object[obj_id].FTC.row(rayhit.hit.primID);
+	Eigen::RowVectorXi ftc = (*myscene.object[obj_id]).FTC.row(rayhit.hit.primID);
 
-	Eigen::RowVector2d a = myscene.object[obj_id].TC.row(ftc(0));
-	Eigen::RowVector2d b = myscene.object[obj_id].TC.row(ftc(1));
-	Eigen::RowVector2d c = myscene.object[obj_id].TC.row(ftc(2));
+	Eigen::RowVector2d a = (*myscene.object[obj_id]).TC.row(ftc(0));
+	Eigen::RowVector2d b = (*myscene.object[obj_id]).TC.row(ftc(1));
+	Eigen::RowVector2d c = (*myscene.object[obj_id]).TC.row(ftc(2));
 
 	Eigen::RowVector2d uv = a + (rayhit.hit.u * (b - a)) + (rayhit.hit.v * (c - a));
 	// UVを出力
@@ -200,7 +267,7 @@ Colorub calc_color_with_texture(RTCRayHit &rayhit, MyScene &myscene, int obj_id)
 		std::cout << "v_ERROR " << uv(1) << std::endl;
 	}
 	// テクスチャを出力
-	Colorub texcol = myscene.texture[0].getPixel((int)((double)myscene.texture[0].getWidth() * uv(0)), (int)((double)myscene.texture[0].getHeight() * uv(1)));
+	Colorub texcol = (*myscene.texture[0]).getPixel((int)((double)(*myscene.texture[0]).getWidth() * uv(0)), (int)((double)(*myscene.texture[0]).getHeight() * uv(1)));
 	//Colorub texcol = texture.getPixel(i, j);
 	return(texcol);
 }
@@ -209,8 +276,6 @@ Colorub calc_color_with_texture(RTCRayHit &rayhit, MyScene &myscene, int obj_id)
 
 // - - - レイとの交差判定 - - - 
 bool crossing_judgement(Image& image, RTCScene& scene, MyScene &myscene) {
-
-
 	
 	// レイを生成する 
 	struct RTCRayHit rayhit;
@@ -254,8 +319,8 @@ bool crossing_judgement(Image& image, RTCScene& scene, MyScene &myscene) {
 				int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
 
 				//屈折無しで見えている：重み１
-				myscene.object[obj_id].VisibilityMAP(rayhit.hit.primID) = 1.0;
-				myscene.object[obj_id].InflectionMAP(rayhit.hit.primID) = 0;
+				(*myscene.object[obj_id]).InflectionMAP(rayhit.hit.primID) = 0;
+				(*myscene.object[obj_id]).ReflectionMAP(rayhit.hit.primID) = 0;
 				//std::cout << ":" << rayhit.hit.primID <<" " <<  myscene.object[obj_id].VisibilityMAP(rayhit.hit.primID) << " ";
 				// 輝度計算
 				/*
@@ -267,7 +332,7 @@ bool crossing_judgement(Image& image, RTCScene& scene, MyScene &myscene) {
 				}*/
 								
 				// 屈折の考慮
-				if (myscene.object[obj_id].mat.transparency != 0) {
+				if ((*myscene.object[obj_id]).mat.transparency != 0) {
 					inflection_crossing_judgement(
 						pixel_color,			
 						rayhit,
@@ -275,15 +340,161 @@ bool crossing_judgement(Image& image, RTCScene& scene, MyScene &myscene) {
 						obj_id, 0.0
 					);
 				}	
+				// 反射の考慮
+				if ((*myscene.object[obj_id]).mat.reflectivity != 0) {
+					reflection_crossing_judgement(
+						pixel_color,
+						rayhit,
+						scene, myscene,
+						obj_id, 1
+					);
+					
+				}
 			}
 			else {
 				pixel_color = COL_BACKGOUND;
 			}
 			image.setPixel(i, j, pixel_color);
-			//std::cout << "[" 
+			
 		}
 	}
 	return(true);
 }
 
+// テスト用
+void reflection_crossing_judgement_test(
+	Colorub& pixel_color,			//return
+	RTCRayHit& prev_ray,
+	RTCScene& scene, MyScene& myscene,
+	int prev_obj_id,
+	int count, int i, int j,
+	std::vector<Eigen::RowVector3d>& points)
+{
+	double reflectivity = (*myscene.object[prev_obj_id]).mat.reflectivity;
+
+	// 新しいRAYを定義
+	struct RTCRayHit rayhit;
+
+	// レイの始点 
+	rayhit.ray.org_x = prev_ray.ray.org_x + (prev_ray.ray.tfar * prev_ray.ray.dir_x);
+	rayhit.ray.org_y = prev_ray.ray.org_y + (prev_ray.ray.tfar * prev_ray.ray.dir_y);
+	rayhit.ray.org_z = prev_ray.ray.org_z + (prev_ray.ray.tfar * prev_ray.ray.dir_z);
+
+	Eigen::RowVector3d point;
+	point << rayhit.ray.org_x, rayhit.ray.org_y, rayhit.ray.org_z;
+	points.push_back(point);
+
+	// 法線の取得
+	Vector3 nom = get_normal(prev_ray, myscene, prev_obj_id);
+
+	// ------- 反射した視線の計算 -------------------------------------------------------
+	Vector3 view(prev_ray.ray.dir_x, prev_ray.ray.dir_y, prev_ray.ray.dir_z);
+	view.normalize();
+
+	Vector3 R; // 反射した視線
+	R = view - (2. * (view.dot(nom)) * nom);
+	// -----------------------------------------------------------------------------------
+
+	if (view.dot(nom) > 0) {
+		std::cout << "ERROR : " << count << " " << prev_ray.hit.primID << " ";
+		return;
+	}
+
+	rayhit.ray.dir_x = R.x;
+	rayhit.ray.dir_y = R.y;
+	rayhit.ray.dir_z = R.z;
+
+	// 交差判定する範囲を指定 
+	rayhit.ray.tnear = 0.001f;     // 範囲の始点 //屈折率１の時0.0だとエラー
+
+	struct RTCIntersectContext context;
+	rtcInitIntersectContext(&context);
+
+	rayhit.ray.flags = false;
+	rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+	rayhit.ray.tfar = INFINITY;
+
+	// 交差判定
+	rtcIntersect1(scene, &context, &rayhit);
+	//std::cout <<"h" <<rayhit.hit.geomID;
+
+	if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
+
+		int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
+		MyObject* obj = myscene.object[obj_id];
+
+		std::cout << "crossing :" << rayhit.hit.primID << " / " << rayhit.hit.geomID << std::endl;
+
+		std::cout << "[" << i << " " << j << "]";
+
+		// 再度反射の考慮
+		if ((*obj).mat.reflectivity != 0 && myscene.reflecting_limit > count) {
+			reflection_crossing_judgement_test(
+				pixel_color,			//return
+				rayhit,
+				scene, myscene,
+				obj_id,
+				count + 1, i,j, points
+			);
+		}
+	}
+}
+
+//テスト用単レイ衝突判定
+bool crossing_judgement_test(Image& image, RTCScene& scene, MyScene& myscene, int i, int j, 
+							 std::vector<Eigen::RowVector3d>& points) 
+{
+
+	// レイを生成する 
+	struct RTCRayHit rayhit;
+	rayhit.ray.org_x = myscene.camera.view.x;  // x
+	rayhit.ray.org_y = myscene.camera.view.y;  // y
+	rayhit.ray.org_z = myscene.camera.view.z;  // z
+	rayhit.ray.tnear = 0.0f;     // 範囲の始点
+	struct RTCIntersectContext context;
+	rtcInitIntersectContext(&context);
+
+	Colorub pixel_color = COL_ERROR;
+
+	// - - - -  RAYの初期化 - - - - - - -
+	Vector3 ray = calcViewingRay(myscene.camera, i, j, image.getWidth(), image.getHeight());
+	rayhit.ray.dir_x = ray.x;  // x
+	rayhit.ray.dir_y = ray.y;  // y
+	rayhit.ray.dir_z = ray.z;  // z
+	rayhit.ray.flags = false;
+	rayhit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+	rayhit.ray.tfar = INFINITY;
+	
+	// - - - - 交差判定 - - - - - - - - -
+	rtcIntersect1(scene, &context, &rayhit);
+
+
+	// - - - - レンダリングとマスク作成 - - - - - -
+	if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
+
+		int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
+
+		std::cout << "crossing :" << rayhit.hit.primID  << " / " << rayhit.hit.geomID << std::endl;
+		
+		// 屈折の考慮
+		if ((*myscene.object[obj_id]).mat.transparency != 0) {
+			inflection_crossing_judgement(
+				pixel_color,
+				rayhit,
+				scene, myscene,
+				obj_id, 0.0
+			);
+		}
+		// 反射の考慮
+		if ((*myscene.object[obj_id]).mat.reflectivity != 0) {
+			reflection_crossing_judgement_test(
+				pixel_color,
+				rayhit,
+				scene, myscene,
+				obj_id, 1, i,j, points
+			);
+		}
+	}
+	return(true);
+}
 
