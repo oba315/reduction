@@ -27,6 +27,7 @@ MyObject::MyObject(std::string path, bool has_texture) {
 	int len = this->F.rows();
 	this->InflectionMAP = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
 	this->ReflectionMAP = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
+	this->InfRefMAP     = Eigen::MatrixXi::Zero(len, 2) - Eigen::MatrixXi::Ones(len, 2);
 	this->VisibilityMAP = Eigen::VectorXd::Zero(len); // 0
 
 	
@@ -43,6 +44,7 @@ void MyObject::print_info() {
 	std::cout << "has_texture  : " << has_texture << std::endl;
 	std::cout << "index        : " << index << std::endl;
 	std::cout << "geomID       : " << geomID << std::endl;
+	std::cout << "smooth shading: " << smooth_shading << std::endl;
 	if (geomID != -1) std::cout << "    -> embreeのシーンに登録済みです" << std::endl;
 	std::cout << "material     : "<< std::endl;
 	std::cout << " - transparency : " << mat.transparency << std::endl;
@@ -90,7 +92,7 @@ void MyObject::add_to_embree_scene(RTCDevice &device, RTCScene &scene) {
 
 	// ３角形ジオメトリを作成 
 	RTCGeometry geom = rtcNewGeometry(device, RTC_GEOMETRY_TYPE_TRIANGLE);
-
+	this->geom_ptr = &geom;
 	// 頂点座標をセット 
 	int j = 0;
 	float* vertices = (float*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3 * sizeof(float), nvert);
@@ -125,6 +127,47 @@ void MyObject::add_to_embree_scene(RTCDevice &device, RTCScene &scene) {
 	//geomIDtemp++;
 }// --------------------------------------------------------------------
 
+// --- embreeのシーンを更新 --------------------------------------------
+void MyObject::update_embree_scene(RTCDevice& device, RTCScene& scene) {
+	int ntri = F.rows();      // シーン中の三角形の数
+	int nvert = V.rows();     // シーン中の頂点の総数
+
+	// ３角形ジオメトリを作成 
+	RTCGeometry geom = this->geom;
+
+	// 頂点座標をセット 
+	int j = 0;
+	float* vertices = (float*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, 3 * sizeof(float), nvert);
+	for (int i = 0; i < nvert; i++) {
+		vertices[j] = float(V(i, 0));
+		vertices[j + 1] = float(V(i, 1));
+		vertices[j + 2] = float(V(i, 2));
+		j += 3;
+	}
+
+	// 面を構成する頂点番号をセット
+	j = 0;
+	unsigned* indices = (unsigned*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, 3 * sizeof(unsigned), ntri);
+	for (int i = 0; i < ntri; i++) {
+		indices[j] = F(i, 0);
+		indices[j + 1] = F(i, 1);
+		indices[j + 2] = F(i, 2);
+		// std::cout << "F?" << i<< " "<< sizeof(indices) <<" "<<F(i, 0) << F(i, 1) << F(i, 2) << " "<< indices[i]<<" "<< indices[i3 + 1] << std::endl;
+		j += 3;
+	}
+
+	/* シーンへ登録 */
+	rtcCommitGeometry(geom);
+	this->geomID = rtcAttachGeometry(scene, geom);
+	rtcReleaseGeometry(geom);
+	rtcCommitScene(scene);
+
+	// geomを登録...
+	this->geom = geom;
+	// geomIDを設定
+	//geomID = geomIDtemp;
+	//geomIDtemp++;
+}// --------------------------------------------------------------------
 
 
 // シーンにオブジェクトを追加し、引数オブジェクトをシーン内のオブジェクトの参照に

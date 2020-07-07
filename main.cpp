@@ -14,6 +14,10 @@
 #include <random>
 #include "crossing_judgment.h"
 #include <time.h>
+#include "matrix_tools.h"
+#include "poly_delete.h"
+#include "get_single_lay.h"
+//#include <igl/png/readPNG.h>
 
 //Eigen::MatrixXd V;
 //Eigen::MatrixXi F;
@@ -32,8 +36,11 @@ void rendering(Image& image, MyScene myscene) {
 	clock_t end = clock();
 	const double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
 	std::cout << "time " << time << "[ms]" << std::endl;
+
+	
 }
 
+// -1を０，その他を小さいほうから赤→青にマッピング
 void inflectionmap_to_color(Eigen::VectorXi &InflectionMAP, Eigen::MatrixXd &C) {
 
 	int max = InflectionMAP.maxCoeff();
@@ -91,12 +98,54 @@ void show_grid(
 			grid_color
 		);
 	}
-
 	viewer.selected_data_index = 0;		// idを戻す
-	
 }
 
 
+// --------------- 単一レイの表示 -------------------------------------
+int single_lay(igl::opengl::glfw::Viewer& viewer,
+					MyScene& myscene,
+					Image& image,
+					Eigen:: RowVector3d col,
+					unsigned int x, unsigned int y) {
+	
+	std::vector<Vector3>single_ray = get_single_lay(x, y, image, *myscene.rtcscene_ptr, myscene);
+	viewer.append_mesh();				
+	int id = viewer.data().id;
+	for (int i = 0; i < single_ray.size(); i += 2) {
+		Eigen::RowVector3d sp;
+		sp << single_ray[i].x, single_ray[i].y, single_ray[i].z;
+		Eigen::RowVector3d ep;
+		ep << single_ray[i + 1].x, single_ray[i + 1].y, single_ray[i + 1].z;
+		viewer.data().add_edges(sp, ep, col);
+	}
+	viewer.selected_data_index = 0;		// idを戻す
+	return id;
+}
+// --------------------------------------------------------------------
+// --------------- レイとの交点における法線の表示 -------------------------------------
+int ray2nom( int inc, // 使用する交点の解像度(何個おきに計算するか) 
+	igl::opengl::glfw::Viewer& viewer,
+	MyScene& myscene,
+	Image& image,
+	Eigen::RowVector3d col
+	) {
+
+	std::vector<Vector3>single_ray = show_normal(inc, image, *myscene.rtcscene_ptr, myscene);
+	viewer.append_mesh();
+	int id = viewer.data().id;
+	
+	for (int i = 0; i < single_ray.size(); i += 2) {
+		Eigen::RowVector3d sp;
+		sp << single_ray[i].x, single_ray[i].y, single_ray[i].z;
+		Eigen::RowVector3d ep;
+		ep << single_ray[i + 1].x, single_ray[i + 1].y, single_ray[i + 1].z;
+		viewer.data().add_edges(sp, ep, col);
+	}
+	viewer.selected_data_index = 0;		// idを戻す
+	return id;
+}
+// --------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {
@@ -104,11 +153,13 @@ int main(int argc, char* argv[])
 	MyScene myscene;
 	
 	// -------- オブジェクトの読み込み ----------------
-	
+	std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/river/river_cut.obj";
 	//MyObject water(mesh_dir_path + "water_test.obj", false);
-	MyObject water("C:/Users/piedp/Documents/Resources/mesh/river/river_cut.obj", false);
+	MyObject water(mesh_path, false);
+	//MyObject water("C:/Users/piedp/Documents/Resources/mesh/river/reduct.3.3.obj", false);
+	//MyObject water("C:/Users/piedp/Documents/Resources/mesh/primitive/cube.obj", false);
 	water.mat.IOR = 1.4;
-	water.mat.transparency = 0.9	;
+	water.mat.transparency = 1.;
 	water.mat.reflectivity = 0;
 	water.color = COL_WATER;
 	water.smooth_shading = true;
@@ -157,32 +208,53 @@ int main(int argc, char* argv[])
 	myscene.add_to_embree_scene(device, scene);
 
 	crossing_judgement(image, scene, myscene);	// 交差判定
-
-	//std::cout << myscene.object[0].ReflectionMAP << std::endl;
 	
-	/*
-	for (int i = 0; i < myscene.object[0].VisibilityMAP.rows(); i++) {
-		std::cout << myscene.object[0].VisibilityMAP(i) << " ";
-	}*/
+	// レンダリングを行う
+	rendering(image, myscene);
+	
+
 
 	// ------- 色の変更 -------------
 	// 白に初期化
 	water.C = Eigen::MatrixXd::Constant(water.F.rows(), 3, 1);
 	
 	// 仮
-	Eigen::VectorXi VisblityMap = water.InflectionMAP;
+	Eigen::VectorXi VisblityMap = water.InfRefMAP.col(0);
+	Eigen::VectorXi VisblityMap2 = water.InfRefMAP.col(1);
 
-	inflectionmap_to_color(water.InflectionMAP, water.C);
+	inflectionmap_to_color(VisblityMap, water.C);
 	// ------------------------------
 
 
+	//test
+	/*
+	Eigen::VectorXi mask = Eigen::VectorXi::Zero(water.F.rows());
+	for (int i = 0; i < water.F.rows(); i++) {
+		//if (i > 0&&i<200000)
+		if (water.InfRefMAP(i, 0) != 0)
+			mask[i] = 1;
+	}
+	std::cout << "befor " << water.F.rows() << std::endl;
+	poldel::poly_delete(water.V, water.F, water.C, mask);
+	std::cout << "after " << water.F.rows() << std::endl;
+	//RTCDevice device = rtcNewDevice(NULL);
+	//RTCScene scene = rtcNewScene(device);
+	myscene.add_to_embree_scene(device, scene);
+	*/
+
+
 	//poly_reduction(V, F, 0.1);
+	// switchの中では宣言できない？
 	double ratio = 0.1;
 	clock_t render_start;
 	clock_t render_end;
 	double render_time;
 	bool   exist_grid;
 	int    grid_id;
+	Eigen::VectorXi mask;
+	Eigen::VectorXi deletemask = Eigen::VectorXi::Zero(water.F.rows());
+	std::vector<RowVecter2i_Float> filter;
+
 	// キー操作
 	const auto& key_down =
 		[&](igl::opengl::glfw::Viewer& viewer, unsigned char key, int mod)->bool
@@ -191,9 +263,14 @@ int main(int argc, char* argv[])
 		{
 		case ' ':
 			std::cout << "spacekey pressed : ポリゴンを削減します" << std::endl;
-			//poly_reduction(V, F, ratio);
-			//limited_area_poly_reduction(V, F, VisiblitiMAP, ratio, false );
-			multiple_area_poly_reduction(water.V, water.F, VisblityMap);
+			
+			for (int i = -1; i < 4; i++) filter.push_back({ {-1,i}, 0.8 });
+			for (int i = -1; i < 4; i++) filter.push_back({ {3,i}, 0.6 });
+			for (int i = -1; i < 4; i++) filter.push_back({ {2,i}, 0.4 });
+			for (int i = -1; i < 4; i++) filter.push_back({ {1,i}, 0.2 });
+			
+
+			multiple_area_poly_reduction(water.V, water.F, water.InfRefMAP, filter, false);
 			ratio + 0.1;
 			std::cout << "V.rows() : " << water.V.rows() << std::endl;
 			std::cout << "F.rows() : " << water.F.rows() << std::endl;
@@ -205,12 +282,54 @@ int main(int argc, char* argv[])
 			viewer.data().set_mesh(water.V, water.F);
 			viewer.data().set_colors(water.C);
 			viewer.data().set_face_based(true);
+			water.update_embree_scene(device, scene);
 			break;
+
+		case '9':
+			// 全体を削減
+			std::cout << "9 pressed : ポリゴンを削減します" << std::endl;
+			//limited_area_poly_reduction(water.V, water.F, mask, 0.5, false);
+			//poly_reduction(water.V, water.F, 0.5, false);
+			temp2(water.V, water.F, 0.5);
+			ratio + 0.1;
+			std::cout << "V.rows() : " << water.V.rows() << std::endl;
+			std::cout << "F.rows() : " << water.F.rows() << std::endl;
+			//std::cout << "F :" << F << std::endl;
+			//std::cout << "V :" << V << std::endl;
+
+
+			viewer.data().clear();
+			viewer.data().set_mesh(water.V, water.F);
+			viewer.data().set_colors(water.C);
+			viewer.data().set_face_based(true);
+			std::cout << "add\n";
+			water.update_embree_scene(device, scene);
+			break;
+
+		case 'j':
+		case 'J':
+			std::cout << "到達しなかった面を削除します" << std::endl;
+			for (int i = 0; i < water.F.rows(); i++) {
+				if (water.InfRefMAP(i,0) == -1) {
+					deletemask(i) = 1;
+				}
+			}
+			poldel::poly_delete(water.V, water.F, water.C, deletemask);
+			// libiglシーンの更新
+			viewer.selected_data_index = 0;
+			viewer.data().clear();
+			viewer.data().set_mesh(water.V, water.F);
+			viewer.data().set_colors(water.C);
+			viewer.data().set_face_based(true);
+			// embreeの更新
+			water.update_embree_scene(device, scene);
+			break;
+
 
 		case 'D':
 		case 'd':
 			std::cout << "Dkey pressed : 不正頂点を削除します" << std::endl;
-			remesh(water.V, water.F);
+			remesh(water.V, water.F, water.C);
 			viewer.data().clear();
 			viewer.data().set_mesh(water.V, water.F);
 			viewer.data().set_colors(water.C);
@@ -220,7 +339,7 @@ int main(int argc, char* argv[])
 		case 'R':
 		case 'r':
 			std::cout << "Rkey pressed : メッシュを再読み込みします" << std::endl;
-			igl::readOBJ(mesh_dir_path, water.V, water.F);
+			igl::readOBJ(mesh_path, water.V, water.F);
 			ratio = 0.1;
 
 			viewer.data().clear();
@@ -243,6 +362,8 @@ int main(int argc, char* argv[])
 			for (MyObject* o : myscene.object) {
 				(*o).model_checker();
 			}
+			std::cout << "Clear" << std::endl;
+			myscene.scene_info();
 			break;
 
 		case 'G':
@@ -273,12 +394,14 @@ int main(int argc, char* argv[])
 	};
 
 
-	// Plot the mesh
+	// ==== libiglシーンへのメッシュ登録 ====
+
+	// ----water---------------------------------------
 	// data().id = 0
 	igl::opengl::glfw::Viewer viewer;
 	viewer.data().set_mesh(water.V, water.F);
 	viewer.data().set_colors(water.C);
-
+	// ------------------------------------------------
 	
 	// -------------------------------------------------
 	// カメラオブジェクトの作成
@@ -301,20 +424,6 @@ int main(int argc, char* argv[])
 		Eigen::RowVector3d(1, 0, 0)
 	);
 	
-	
-	std::vector<Eigen::RowVector3d> points;
-	points.push_back(Eigen::RowVector3d(myscene.camera.view.x, myscene.camera.view.y, myscene.camera.view.z));
-	crossing_judgement_test(image, scene, myscene, 217, 174, points);	// 交差判定test
-	for (int i = 0; i < points.size(); i++) {
-		std::cout << points[i] << std::endl;
-	}
-	for (int i = 0; i < points.size()-1; i++) {
-		viewer.data().add_edges(
-			points[i],
-			points[i+1],
-			Eigen::RowVector3d(0, 0, 0)
-		);
-	}
 	viewer.selected_data_index = 0;		// idを戻す
 	// --------------------------------------------------
 	
@@ -325,8 +434,19 @@ int main(int argc, char* argv[])
 	show_grid(viewer, grid_id);	
 	exist_grid = true;
 	viewer.selected_data_index = 0;		// idを戻す
+	// -------------------------------------------------
 
-
+	// --------------------------------------------------
+	// 単一レイの表示					
+	Eigen::RowVector3d col;
+	col << 1, 1, 1;
+	single_lay(viewer, myscene, image, col, 511, 550);  // id : 3
+	col << 1, 0, 0;
+	single_lay(viewer, myscene, image, col, 513, 550);  // id : 4
+	// --------------------------------------------------
+    // 法線の表示
+	col << 0, 1, 0;
+	//ray2nom(20, viewer, myscene, image, col);
 
 	viewer.callback_key_down = key_down;
 	myscene.scene_info();

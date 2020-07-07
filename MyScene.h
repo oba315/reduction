@@ -46,6 +46,7 @@ private:
 
 	int index = -1;
 	int geomID = -1; // embreeでの識別ID
+	RTCGeometry* geom_ptr;
 	
 public:
 	Eigen::MatrixXd V;			// 頂点の位置情報
@@ -57,6 +58,7 @@ public:
 
 	Eigen::VectorXi InflectionMAP;  // 屈折率のマッピング　衝突無し：-1, 屈折無し:0, 屈折回数:int
 	Eigen::VectorXi ReflectionMAP;  // 反射回数のマッピング　衝突無し：-1, 反射無し:0, 反射回数:int
+	Eigen::MatrixXi InfRefMAP;		// 面ごとの，(屈折回数,反射回数)のマッピング
 	Eigen::VectorXd VisibilityMAP;	// 面→視覚的重み　のマッピング
 
 	RTCGeometry geom;
@@ -64,7 +66,7 @@ public:
 
 	bool has_texture = false;
 	Colorub color = COL_RED;
-	bool smooth_shading = true;
+	bool smooth_shading = false;
 
 	//  objファイルの読み込み (texture情報はmtlファイルから読んだ方がスマート)
 	//  ※シーンへ登録してください.
@@ -81,6 +83,7 @@ public:
 	int get_geomID();
 
 	void add_to_embree_scene(RTCDevice &device, RTCScene &scene);
+	void update_embree_scene(RTCDevice& device, RTCScene& scene);	//問題なさそう
 	
 };
 // ---------------------------------------------------------------------------

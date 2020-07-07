@@ -43,7 +43,7 @@ Colorub Image::getPixel(float i, float j) {
 		int v = int(height * j);
 		return(pixel[width * v + u]);
 	}
-	else std::cout << "ERROR : imageのピクセルに対する不正なアクセスです．" << "u:" << i << " v:" << j << "\nRayの正規化を確認して下さい．"<< std::endl;
+	else std::cout << "ERROR(image.cpp) : imageのピクセルに対する不正なアクセスです．" << "u:" << i << " v:" << j << "\nRayの正規化を確認して下さい．"<< std::endl;
 }
 //----------------------------------------------------------------------------
 void Image::setPixel(int i, int j, Colorub c)

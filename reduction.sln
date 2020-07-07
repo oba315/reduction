@@ -7,11 +7,13 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "reduction", "project1.vcxpr
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Eigenテスト", "..\Eigenテスト\Eigenテスト.vcxproj", "{8A9F112B-6CC2-4693-A313-CDD14FC978FE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libiglテスト", "..\libiglテスト\libiglテスト.vcxproj", "{159E1D7C-5D4E-440B-84D4-44860801F031}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libiglテスト_", "..\libiglテスト\libiglテスト.vcxproj", "{159E1D7C-5D4E-440B-84D4-44860801F031}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "C++テスト", "..\C++テスト\C++テスト.vcxproj", "{7936EAA0-1EF2-459D-820D-6B89282B0CB5}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "embreeテスト", "..\ConsoleApplication1\ConsoleApplication1.vcxproj", "{25BCBF5C-F3E0-4DA1-8C03-54DD3A44070E}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "image_processing", "..\image_processing\image_processing.vcxproj", "{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -61,6 +63,14 @@ Global
 		{25BCBF5C-F3E0-4DA1-8C03-54DD3A44070E}.Release|x64.Build.0 = Release|x64
 		{25BCBF5C-F3E0-4DA1-8C03-54DD3A44070E}.Release|x86.ActiveCfg = Release|Win32
 		{25BCBF5C-F3E0-4DA1-8C03-54DD3A44070E}.Release|x86.Build.0 = Release|Win32
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Debug|x64.ActiveCfg = Debug|x64
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Debug|x64.Build.0 = Debug|x64
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Debug|x86.ActiveCfg = Debug|Win32
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Debug|x86.Build.0 = Debug|Win32
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Release|x64.ActiveCfg = Release|x64
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Release|x64.Build.0 = Release|x64
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Release|x86.ActiveCfg = Release|Win32
+		{BB4BA450-2334-4E5B-A532-87BCFEAEC18E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

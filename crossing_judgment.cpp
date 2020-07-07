@@ -35,6 +35,28 @@ namespace ren
 		return (nom);
 	}
 
+	// スム―ジュシェーディングの可否を考慮
+	Vector3 get_normal2(RTCRayHit& rayhit, MyScene& myscene, RTCScene& scene, int obj_id) {
+		Vector3 nom;
+		if (!((*myscene.object[obj_id]).smooth_shading)) {
+			nom = { rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z };
+		}
+		else {	//スムーズシェーディング未実装
+			float P[3] = { 0,0,0 };
+			float dPdu[3] = { 0,0,0 };
+			float dPdv[3] = { 0,0,0 };
+			rtcInterpolate1(rtcGetGeometry(scene, rayhit.hit.geomID), rayhit.hit.primID,
+				rayhit.hit.u, rayhit.hit.v, RTC_BUFFER_TYPE_VERTEX, 0, P, &dPdu[0], &dPdv[0], 3);
+			Vector3 d1(dPdu[0], dPdu[1], dPdu[2]);
+			Vector3 d2(dPdv[0], dPdv[1], dPdv[2]);
+			Vector3 PP(P[0], P[1], P[2]);
+
+			nom = d1.cross(d2);
+		}
+		nom.normalize();
+		return (nom);
+	}
+
 	// 視線を計算
 	Vector3 calcViewingRay(Camera& cam, int ix, int iy, int width, int height)
 	{
@@ -104,6 +126,7 @@ namespace ren
 		RTCScene& scene, MyScene& myscene,
 		int prev_obj_id)
 	{
+		std::cout << "regacy!";
 		double transparency = (*myscene.object[prev_obj_id]).mat.transparency;
 		double IOR = (*myscene.object[prev_obj_id]).mat.IOR;
 		// 新しいRAYを定義
@@ -212,6 +235,8 @@ namespace ren
 		int prev_obj_id,
 		int count)
 	{
+		std::cout << "regacy!";
+
 		double reflectivity = (*myscene.object[prev_obj_id]).mat.reflectivity;
 
 		// 新しいRAYを定義
@@ -226,8 +251,7 @@ namespace ren
 		// 法線の取得
 		Vector3 nom = get_normal(prev_ray, myscene, prev_obj_id);
 		// スムーズシェーディングを使うと、ありえない衝突が起こってしまう。
-		// nom = { prev_ray.hit.Ng_x, prev_ray.hit.Ng_y, prev_ray.hit.Ng_z }; 
-		// nom.normalize();
+		nom.normalize();
 
 
 		// ------- 反射した視線の計算 -------------------------------------------------------
@@ -367,7 +391,7 @@ namespace ren
 		return C;
 	}
 
-	// 屈折レイの初期化
+	// 屈折レイの計算
 	RTCRayHit calc_inflection_ray(RTCRayHit& prev_ray, RTCScene& scene, MyScene& myscene,int prev_obj_id, float IOR){
 		
 		struct RTCRayHit rayhit;
@@ -379,7 +403,7 @@ namespace ren
 
 		// 法線の取得
 		Vector3 nom;
-		nom = get_normal(prev_ray, myscene, prev_obj_id);
+		nom = get_normal2(prev_ray, myscene,scene,  prev_obj_id);
 
 		// ------- 屈折した視線の計算 -------------------------------------------------------
 		Vector3 view(prev_ray.ray.dir_x, prev_ray.ray.dir_y, prev_ray.ray.dir_z);
@@ -416,7 +440,7 @@ namespace ren
 
 		return rayhit;
 	}
-	// 反射レイの初期化
+	// 反射レイの計算
 	RTCRayHit calc_reflection_ray(RTCRayHit& prev_ray, RTCScene& scene, MyScene& myscene, int prev_obj_id, float IOR) {
 
 		double reflectivity = (*myscene.object[prev_obj_id]).mat.reflectivity;
@@ -431,12 +455,12 @@ namespace ren
 
 
 		// 法線の取得
-		Vector3 nom = get_normal(prev_ray, myscene, prev_obj_id);
+		Vector3 nom = get_normal2(prev_ray, myscene, scene, prev_obj_id);
 		// スムーズシェーディングを使うと、ありえない衝突が起こってしまう。
 		// nom = { prev_ray.hit.Ng_x, prev_ray.hit.Ng_y, prev_ray.hit.Ng_z }; 
 		// nom.normalize();
 
-
+		//std::cout << nom.x << " " << nom.y << " " << nom.z << std::endl;
 
 		// ------- 反射した視線の計算 -------------------------------------------------------
 		Vector3 view(prev_ray.ray.dir_x, prev_ray.ray.dir_y, prev_ray.ray.dir_z);
@@ -446,10 +470,13 @@ namespace ren
 		if (nom.dot(view) > 0) {
 			nom = nom * (-1.0);
 			IOR = 1.0 / IOR;
+			//std::cout << "a";
 		}
+
 		
 		Vector3 R; // 反射した視線
 		R = view - (2. * (view.dot(nom)) * nom);
+		//R = 2. * nom + view;
 		// -----------------------------------------------------------------------------------
 
 		// 稜線付近ではうまく反射を計算できない点がある。
@@ -479,83 +506,99 @@ namespace ren
 		
 
 	// 求めたい方向で初期化されている/交差判定がまだ行われていないレイを渡す．
-	Colorub ray_calc(RTCRayHit& rayhit, RTCScene& scene, MyScene &myscene, Colorub &pixel_color, int inflection_count, int reflection_count) {
+	Colorub ray_calc(   RTCRayHit& rayhit, 
+						RTCScene& scene, 
+						MyScene &myscene, 
+						Colorub &pixel_color, 
+						int inflection_count, 
+						int reflection_count   ) {
 		
-
 		struct RTCIntersectContext context;
 		rtcInitIntersectContext(&context);
 
 		// - - - - 交差判定 - - - - - - - - -
 		rtcIntersect1(scene, &context, &rayhit);
 
-
 		// - - - - レンダリングとマスク作成 - - - - - -
-		if ((rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) && (inflection_count < myscene.inflecting_limit && reflection_count < myscene.reflecting_limit)) {
+		if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
 
-			int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
-			MyObject* obj = myscene.object[obj_id];
-			Vector3 dir(rayhit.ray.dir_x, rayhit.ray.dir_y, rayhit.ray.dir_z);
-			Vector3 nom(rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z);
-			nom.normalize();
+			if (inflection_count < myscene.inflecting_limit && reflection_count < myscene.reflecting_limit) {
+				int       obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
+				MyObject* obj = myscene.object[obj_id];
+				Vector3 dir(rayhit.ray.dir_x, rayhit.ray.dir_y, rayhit.ray.dir_z);
+				Vector3 nom(rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z);
+				nom.normalize();
 
-			// ベースカラー
-			Colorub basecol = rambert(rayhit, myscene);
-			pixel_color = basecol;
-
-			// 反射，屈折の考慮
-			// 透過率：1以外の場合，元の色を残す．(色ガラス状態) 
-			if ((*obj).mat.transparency != 0) {
-				Colorub col_base = rambert(rayhit, myscene);
+				// ベースカラーの計算
+				Colorub basecol = rambert(rayhit, myscene);
+				pixel_color = basecol;
 
 
-				
-				
+				// 透過率が1未満の場合，反射，屈折の考慮 
+				if (obj->mat.transparency != 0) {
 
-				float flesnel;										// フレネル：何割が反射するか(残りは屈折)
-				float IOR = (*myscene.object[obj_id]).mat.IOR;
-				// 裏面に衝突した場合
-				if (nom.dot(dir) > 0) {
-					nom = nom * (-1.0);
+
+					// ----------------  reduction用可視性重みづけ --------------------------------- 
+					int fid = rayhit.hit.primID;
+					Eigen::VectorXi ff = obj->InfRefMAP.row(fid);
+					if ((ff(0) == -1) || inflection_count < ff(0)) {
+						obj->InfRefMAP(fid, 0) = inflection_count;
+					}
+					if ((ff(1) == -1) || reflection_count < ff(1)) {
+						obj->InfRefMAP(fid, 1) = reflection_count;
+					}// -----------------------------------------------------------------------------
+
+					// ---------- フレネルの計算：何割が反射するか(残りは屈折) ------------------------
+					float flesnel;
+					float IOR = (*myscene.object[obj_id]).mat.IOR;
+					// 裏面に衝突した場合
+					if (nom.dot(dir) > 0) {
+						nom = nom * (-1.0);
+					}
+					float f0 = pow(((1 - IOR) / (1 + IOR)), 2);
+					float cosine = -1 * (dir.dot(nom));						//内積からcosの計算
+					flesnel = f0 + (1 - f0) * pow((1 - cosine), 5);
+
+					//flesnel = 1;
+					if (flesnel < 0 || flesnel > 1) std::cout << "flesnel error : " << flesnel;
+					// --------------------------------------------------------------------------------
+
+
+					/*透過マテリアルは無条件でとりあえず屈折も反射も計算しているからムダかも*/
+
+					// 屈折レイを計算
+					Colorub col_inf;
+					if (flesnel != 1) {
+						struct RTCRayHit inf_ray = calc_inflection_ray(rayhit, scene, myscene, obj_id, IOR);
+						col_inf = ray_calc(inf_ray, scene, myscene, pixel_color,
+							inflection_count + 1, reflection_count);
+					}
+					else { col_inf = COL_BLACK; }
+
+					// 反射レイを計算
+					Colorub col_ref;
+					if (flesnel != 0) {
+						struct RTCRayHit ref_ray = calc_reflection_ray(rayhit, scene, myscene, obj_id, IOR);
+						col_ref = ray_calc(ref_ray, scene, myscene, pixel_color,
+							inflection_count, reflection_count + 1);
+					}
+					else { col_ref = COL_BLACK; }
+
+					// 屈折，反射，ベースカラーをフレネルと反射率に基づいて合成
+					Colorub rr = mix2(col_inf, col_ref, flesnel);
+					pixel_color = mix2(basecol, rr, obj->mat.transparency);
 				}
-				float f0 = pow(((1 - IOR) / (1 + IOR)), 2);
-				float cosine = -1*(dir.dot(nom));						//内積からcosの計算
-				flesnel = f0 + (1 - f0) * pow((1 - cosine), 5);
-
-				//flesnel = 0.5;
-				if (flesnel < 0 || flesnel > 1) std::cout << "flesnel error : " << flesnel;
-
-				inflection_count += 1;
-				reflection_count += 1;
-
-				
-				// 屈折レイを計算
-				struct RTCRayHit inf_ray = calc_inflection_ray(rayhit, scene, myscene, obj_id, IOR);
-				Colorub col_inf = ray_calc(inf_ray, scene, myscene, pixel_color, inflection_count, reflection_count);
-					
-				// 反射レイを計算
-				struct RTCRayHit ref_ray = calc_reflection_ray(rayhit, scene, myscene, obj_id, IOR);
-				Colorub col_ref = ray_calc(ref_ray, scene, myscene, pixel_color, inflection_count, reflection_count);
-
-				Colorub rr = mix2(col_inf, col_ref, flesnel);
-				pixel_color = mix2(basecol, rr, obj->mat.transparency);
-				
-				
-				
-
-				
-				
 			}
-
-
-
+			else { // 衝突回数制限
+				ray_to_backgrownd(rayhit, myscene, pixel_color);
+				pixel_color = COL_BLACK;
+			}
 		}
-		else {
-
+		else { // 非衝突
 			ray_to_backgrownd(rayhit, myscene, pixel_color);
 		}
-		
-		return( pixel_color);
 
+		return( pixel_color);
 	}
 
 
@@ -572,7 +615,6 @@ namespace ren
 				}
 			}
 		}
-		
 
 		// レイを生成する 
 		struct RTCRayHit rayhit;
@@ -617,69 +659,6 @@ namespace ren
 				}
 				else std::cout << "ERROR: color < 0 or color > 255" << std::endl;
 
-
-				/*
-				// - - - - 交差判定 - - - - - - - - -
-				rtcIntersect1(scene, &context, &rayhit);
-
-
-				// - - - - レンダリングとマスク作成 - - - - - -
-				if (rayhit.hit.geomID != RTC_INVALID_GEOMETRY_ID) {
-
-					int obj_id = myscene.geomID_to_objectID(rayhit.hit.geomID);
-					MyObject* obj = myscene.object[obj_id];
-					Vector3 dir(rayhit.ray.dir_x, rayhit.ray.dir_y, rayhit.ray.dir_z);
-					Vector3 nom(rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z);
-					nom.normalize();
-
-					pixel_color = rambert(rayhit, myscene);
-					
-					
-					// 透過率：1以外の場合，元の色を残す．(色ガラス状態) 
-					if ((*obj).mat.transparency != 0) {
-						
-						Colorub col_base = rambert(rayhit, myscene);
-						
-						float flesnel;										// フレネル：何割が反射するか(残りは屈折)
-						float IOR     = (*myscene.object[obj_id]).mat.IOR;
-						float f0      = pow(((1 - IOR) / (1 + IOR)), 2);
-						float cosine  = dir.dot(nom);						//内積からcosの計算
-						flesnel       = f0 + (1 - f0) * pow((1 - cosine), 5);
-
-
-
-						mix();
-					}
-
-
-
-					// 屈折の考慮
-					if ((*obj).mat.transparency != 0) {
-						inflection_crossing_judgement(
-							pixel_color,
-							rayhit,
-							scene, myscene,
-							obj_id
-						);
-					}
-					// 反射の考慮
-					// とりあえず、反射と屈折は両立できない。
-					if ((*obj).mat.reflectivity != 0 && myscene.reflecting_limit != 0) {
-						reflection_crossing_judgement(
-							pixel_color,
-							rayhit,
-							scene, myscene,
-							obj_id,
-							1
-						);
-					}
-				}
-				else {
-
-					ray_to_backgrownd(rayhit, myscene, pixel_color);
-				}
-				image.setPixel(i, j, pixel_color);
-				*/
 			}
 		}
 		return(true);
