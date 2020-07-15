@@ -25,10 +25,12 @@ MyObject::MyObject(std::string path, bool has_texture) {
 
 	// 各マップの初期化
 	int len = this->F.rows();
-	this->InflectionMAP = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
-	this->ReflectionMAP = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
-	this->InfRefMAP     = Eigen::MatrixXi::Zero(len, 2) - Eigen::MatrixXi::Ones(len, 2);
-	this->VisibilityMAP = Eigen::VectorXd::Zero(len); // 0
+	this->InflectionMAP  = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
+	this->ReflectionMAP  = Eigen::VectorXi::Zero(len) - Eigen::VectorXi::Ones(len); // -1
+	this->InfRefMAP      = Eigen::MatrixXi::Zero(len, 2) - Eigen::MatrixXi::Ones(len, 2);
+	this->VisibilityMAP  = Eigen::VectorXd::Zero(len); // 0
+	this->RayLengthMAP   = Eigen::VectorXd::Zero(len); // 0
+	this->RayStrengthMAP = Eigen::VectorXd::Zero(len);
 
 	
 }
@@ -39,14 +41,14 @@ void MyObject::print_info() {
 	std::cout << "\n- - - Object Info - - -" << std::endl;
 	std::cout << "name : " ;
 	NAME(this);
-	std::cout << "V.rows()     : " << V.rows() << std::endl;
-	std::cout << "F.rows()     : " << F.rows() << std::endl;
-	std::cout << "has_texture  : " << has_texture << std::endl;
-	std::cout << "index        : " << index << std::endl;
-	std::cout << "geomID       : " << geomID << std::endl;
-	std::cout << "smooth shading: " << smooth_shading << std::endl;
+	std::cout << "V.rows()        : " << V.rows() << std::endl;
+	std::cout << "F.rows()        : " << F.rows() << std::endl;
+	std::cout << "has_texture     : " << has_texture << std::endl;
+	std::cout << "index           : " << index << std::endl;
+	std::cout << "geomID          : " << geomID << std::endl;
+	std::cout << "smooth shading  : " << smooth_shading << std::endl;
 	if (geomID != -1) std::cout << "    -> embreeのシーンに登録済みです" << std::endl;
-	std::cout << "material     : "<< std::endl;
+	std::cout << "material        : "<< std::endl;
 	std::cout << " - transparency : " << mat.transparency << std::endl;
 	std::cout << " - IOR          : " << mat.IOR << std::endl;
 	std::cout << " - reflectivity : " << mat.reflectivity << std::endl;
@@ -169,6 +171,22 @@ void MyObject::update_embree_scene(RTCDevice& device, RTCScene& scene) {
 	//geomIDtemp++;
 }// --------------------------------------------------------------------
 
+
+void MyObject::normalize_RayLengthMAP() {
+	double maxx = 0;
+	double minn = DBL_MAX;
+	for (int i = 0; i < RayLengthMAP.size(); i++) {
+		if (RayLengthMAP(i) == 0) continue;
+		if (RayLengthMAP(i) > maxx) maxx = RayLengthMAP(i);
+		if (RayLengthMAP(i) < minn) minn = RayLengthMAP(i);
+	}
+	for (int i = 0; i < RayLengthMAP.size(); i++) {
+		if (RayLengthMAP(i) == 0) RayLengthMAP(i) = maxx;
+	}
+	std::cout << "normalize ratlength" << maxx << " " << minn << std::endl;
+	double range = maxx - minn;
+	RayLengthMAP.array() = (RayLengthMAP.array() - minn) / range;
+}
 
 // シーンにオブジェクトを追加し、引数オブジェクトをシーン内のオブジェクトの参照に
 void MyScene::add_object_to_scene(MyObject &obj) {

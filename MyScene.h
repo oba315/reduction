@@ -60,6 +60,9 @@ public:
 	Eigen::VectorXi ReflectionMAP;  // 反射回数のマッピング　衝突無し：-1, 反射無し:0, 反射回数:int
 	Eigen::MatrixXi InfRefMAP;		// 面ごとの，(屈折回数,反射回数)のマッピング
 	Eigen::VectorXd VisibilityMAP;	// 面→視覚的重み　のマッピング
+	Eigen::VectorXd RayLengthMAP;   // 面ごとの最短で到達するrayの長さ
+	void normalize_RayLengthMAP();
+	Eigen::VectorXd RayStrengthMAP; // 面ごとの最大の到達する光の強さ(反射，屈折で減衰) max:1
 
 	RTCGeometry geom;
 	MyMaterial mat;

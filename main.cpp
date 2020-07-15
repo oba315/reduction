@@ -149,11 +149,13 @@ int ray2nom( int inc, // 使用する交点の解像度(何個おきに計算するか)
 
 int main(int argc, char* argv[])
 {
+
 	// ----- シーンの作成 --------
 	MyScene myscene;
 	
 	// -------- オブジェクトの読み込み ----------------
-	std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/river/river_cut.obj";
+	//std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/river/river_cut.obj";
+	std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/primitive/plane.obj";
 	//MyObject water(mesh_dir_path + "water_test.obj", false);
 	MyObject water(mesh_path, false);
 	//MyObject water("C:/Users/piedp/Documents/Resources/mesh/river/reduct.3.3.obj", false);
@@ -215,15 +217,30 @@ int main(int argc, char* argv[])
 
 
 	// ------- 色の変更 -------------
-	// 白に初期化
-	water.C = Eigen::MatrixXd::Constant(water.F.rows(), 3, 1);
+	// BLKに初期化(1:white)
+	water.C = Eigen::MatrixXd::Constant(water.F.rows(), 3, 0);
 	
 	// 仮
 	Eigen::VectorXi VisblityMap = water.InfRefMAP.col(0);
 	Eigen::VectorXi VisblityMap2 = water.InfRefMAP.col(1);
 
-	inflectionmap_to_color(VisblityMap, water.C);
+	//inflectionmap_to_color(VisblityMap, water.C);
+	//water.normalize_RayLengthMAP(); 
+	//igl::jet(water.RayLengthMAP, 0, 1, water.C);
+	//water.C.col(0) = water.RayStrengthMAP;
+
+	//double minn = water.RayLengthMAP.minCoeff();
+	//double maxx = water.RayLengthMAP.maxCoeff();
+	//igl::jet(water.RayLengthMAP, minn, maxx, water.C);
+	Eigen::VectorXd positionMAP(water.F.rows());
+	for (int i = 0; i < water.F.rows(); i++) {
+		positionMAP(i) = water.V(water.F(i, 0), 0) + water.V(water.F(i, 1), 0) + water.V(water.F(i, 2), 0) / 3;
+	}
+	igl::jet(positionMAP, positionMAP.minCoeff(), positionMAP.maxCoeff(), water.C);
 	// ------------------------------
+
+	//std::cout << water.RayLengthMAP.topRows(100) << std::endl;
+	//std::cout << water.RayStrengthMAP.topRows(100) << std::endl;
 
 
 	//test
@@ -251,7 +268,7 @@ int main(int argc, char* argv[])
 	double render_time;
 	bool   exist_grid;
 	int    grid_id;
-	Eigen::VectorXi mask;
+	Eigen::VectorXd mask;
 	Eigen::VectorXi deletemask = Eigen::VectorXi::Zero(water.F.rows());
 	std::vector<RowVecter2i_Float> filter;
 
@@ -290,7 +307,14 @@ int main(int argc, char* argv[])
 			std::cout << "9 pressed : ポリゴンを削減します" << std::endl;
 			//limited_area_poly_reduction(water.V, water.F, mask, 0.5, false);
 			//poly_reduction(water.V, water.F, 0.5, false);
-			temp2(water.V, water.F, 0.5);
+			mask = Eigen::VectorXd::Zero(water.InflectionMAP.rows());
+			for (int i = 0; i < water.InfRefMAP.rows(); i++) {
+				if (water.InfRefMAP(i, 0) == -1) mask(i) = 1.;
+			}
+			//reduction(water.V, water.F, 0.8, mask);
+			positionMAP = (positionMAP.array() +  positionMAP.minCoeff())/20.;
+			mask = Eigen::VectorXd::Ones(mask.size());
+			reduction(water.V, water.F, 0.5, positionMAP);
 			ratio + 0.1;
 			std::cout << "V.rows() : " << water.V.rows() << std::endl;
 			std::cout << "F.rows() : " << water.F.rows() << std::endl;
@@ -305,6 +329,8 @@ int main(int argc, char* argv[])
 			std::cout << "add\n";
 			water.update_embree_scene(device, scene);
 			break;
+
+		
 
 		case 'j':
 		case 'J':
@@ -392,7 +418,7 @@ int main(int argc, char* argv[])
 		}
 		return true;
 	};
-
+	
 
 	// ==== libiglシーンへのメッシュ登録 ====
 

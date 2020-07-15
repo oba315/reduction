@@ -511,7 +511,8 @@ namespace ren
 						MyScene &myscene, 
 						Colorub &pixel_color, 
 						int inflection_count, 
-						int reflection_count   ) {
+						int reflection_count,
+						RayInfo &rayinfo ) {
 		
 		struct RTCIntersectContext context;
 		rtcInitIntersectContext(&context);
@@ -528,6 +529,10 @@ namespace ren
 				Vector3 dir(rayhit.ray.dir_x, rayhit.ray.dir_y, rayhit.ray.dir_z);
 				Vector3 nom(rayhit.hit.Ng_x, rayhit.hit.Ng_y, rayhit.hit.Ng_z);
 				nom.normalize();
+
+				
+				rayinfo.ray_length += rayhit.ray.tfar;
+
 
 				// ベースカラーの計算
 				Colorub basecol = rambert(rayhit, myscene);
@@ -546,7 +551,14 @@ namespace ren
 					}
 					if ((ff(1) == -1) || reflection_count < ff(1)) {
 						obj->InfRefMAP(fid, 1) = reflection_count;
-					}// -----------------------------------------------------------------------------
+					}
+					if (obj->RayLengthMAP(fid) > rayinfo.ray_length || obj->RayLengthMAP(fid) == 0) {
+						obj->RayLengthMAP(fid) = rayinfo.ray_length;
+					}
+					if (obj->RayStrengthMAP(fid) < rayinfo.ray_strength || obj->RayStrengthMAP(fid) == 0) {
+						obj->RayStrengthMAP(fid) = rayinfo.ray_strength;
+					}
+					// -----------------------------------------------------------------------------
 
 					// ---------- フレネルの計算：何割が反射するか(残りは屈折) ------------------------
 					float flesnel;
@@ -569,18 +581,22 @@ namespace ren
 					// 屈折レイを計算
 					Colorub col_inf;
 					if (flesnel != 1) {
+						RayInfo inf_rayinfo = rayinfo;
+						inf_rayinfo.ray_strength *= 1-flesnel;
 						struct RTCRayHit inf_ray = calc_inflection_ray(rayhit, scene, myscene, obj_id, IOR);
 						col_inf = ray_calc(inf_ray, scene, myscene, pixel_color,
-							inflection_count + 1, reflection_count);
+							inflection_count + 1, reflection_count, inf_rayinfo);
 					}
 					else { col_inf = COL_BLACK; }
 
 					// 反射レイを計算
 					Colorub col_ref;
 					if (flesnel != 0) {
+						RayInfo ref_rayinfo = rayinfo;
+						ref_rayinfo.ray_strength *= flesnel;
 						struct RTCRayHit ref_ray = calc_reflection_ray(rayhit, scene, myscene, obj_id, IOR);
 						col_ref = ray_calc(ref_ray, scene, myscene, pixel_color,
-							inflection_count, reflection_count + 1);
+							inflection_count, reflection_count + 1, ref_rayinfo);
 					}
 					else { col_ref = COL_BLACK; }
 
@@ -653,7 +669,8 @@ namespace ren
 				int inflection_count = 0;
 				int reflection_count = 0;
 
-				pixel_color = ray_calc(rayhit, scene, myscene, pixel_color, inflection_count, reflection_count);
+				RayInfo rayinfo;
+				pixel_color = ray_calc(rayhit, scene, myscene, pixel_color, inflection_count, reflection_count, rayinfo);
 				if (0 <= pixel_color.r && pixel_color.r <= 255 && 0 <= pixel_color.r && pixel_color.g <= 255 && 0 <= pixel_color.b && pixel_color.b <= 255){
 					image.setPixel(i, j, pixel_color);
 				}

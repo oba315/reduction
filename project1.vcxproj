@@ -153,6 +153,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="matrix_tools.cpp" />
     <ClCompile Include="MyScene.cpp" />
+    <ClCompile Include="my_collapse_edge.cpp" />
     <ClCompile Include="poly_delete.cpp" />
     <ClCompile Include="poly_reduction.cpp" />
     <ClCompile Include="testClass.cpp" />
@@ -167,6 +168,7 @@
     <ClInclude Include="embree_process.h" />
     <ClInclude Include="get_single_lay.h" />
     <ClInclude Include="MyScene.h" />
+    <ClInclude Include="my_collapse_edge.h" />
     <ClInclude Include="my_structs.h" />
     <ClInclude Include="image.h" />
     <ClInclude Include="matrix_tools.h" />

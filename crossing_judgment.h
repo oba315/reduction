@@ -11,6 +11,14 @@
 
 namespace ren
 {
+	struct RayInfo {
+		double ray_strength;
+		double ray_length  ;
+		RayInfo() {
+			ray_strength = 1;
+			ray_length = 0;
+		}
+	};
 
 	bool crossing_judgement(Image& image, RTCScene& scene, MyScene myscene);
 	Colorub mix2(Colorub& col1, Colorub& col2, double fac);

@@ -11,13 +11,7 @@
 #include <time.h>
 #include <set>
 
-//------------------------------------------------------------------------------------------------//
-// 全体を一定の割合で削減
-void poly_reduction(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const double ratio, bool is_remesh);
-
-
-//------------------------------------------------------------------------------------------------//
-
+#include "my_collapse_edge.h"
 
 
 
@@ -77,7 +71,7 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
 		std::cout << "不正頂点はありません." << std::endl;
 		return;
 	}
-	else  std::cout << "不正頂点が" << V.rows() - SV.rows() << "個あります。修正します。" << std::endl;
+	else  std::cout << "不正頂点が" << V.rows() - SV.rows() << "個あります。修正しました。" << std::endl;
 	
 	V = SV;
 	
@@ -92,8 +86,10 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
 			F(i, j) = SVJ(temp);
 		}
 	}
-	
-	//　構成頂点に同一の頂点を含む面の削除
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+	// - - - - - 構成頂点に同一の頂点を含む面の削除 - - - - - - -
+	std::set<int> used_vid;
 	std::vector<double> tempvec;
 	for (int i = 0; i < F.rows(); i++) {
 		if (F(i, 0) != F(i, 1) && F(i, 1) != F(i, 2) && F(i, 2) != F(i, 0)) {
@@ -101,38 +97,35 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F) {
 			tempvec.push_back(F(i, 1));
 			tempvec.push_back(F(i, 2));
 		}
+		used_vid.insert(F(i, 0));
+		used_vid.insert(F(i, 1));
+		used_vid.insert(F(i, 2));
 	}
 	Eigen::MatrixXi temp = VecToMat(tempvec);
 	F = temp;
-	std::cout << "	finish (" << vn << "->" << V.rows() << ")\n	   time:" << clock() - start << "[ms]" << std::endl;
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 	
-	/*
-	// 不正頂点のチェック
-	std::vector<int> flag;
+	// - - - - - 孤立頂点の削除 - - - - - - - - - - - - - - - 
+	int count = 0;
+	Eigen::VectorXi mask = Eigen::VectorXi::Zero(V.rows());
 	for (int i = 0; i < V.rows(); i++) {
-		if ((F.array() != i).all()) {
-			flag.push_back(i);
-		}
-	}
-	if(flag.size() == 0)  std::cout << "不正頂点はありません." << std::endl;
-	else {
-		std::cout << "不正頂点が" << flag.size() << "個あります。修正します。" << std::endl;
-
-		// 頂点を削除
-		//Eigen::MatrixXi SVJ;
-		//remove_row(V, SVJ, flag);
-		std::cout << "V.rows()" << V.rows();
-		// 面の対応を修正(旧頂点番号を新頂点番号に変更)
-		for (int i = 0; i < F.rows(); i++)
-		{
-			for (int j = 0; j < F.cols(); j++)
-			{
-				int temp = F(i, j);
-				F(i, j) = SVJ(temp);
+		for (auto iter = used_vid.begin(); iter != used_vid.end(); ++iter) {
+			if (i == *iter) {
+				break;
+			}
+			if (i < *iter) {
+				mask(i) = 1;
+				count++;
+				break;
 			}
 		}
-	}std::cout << "time:" << clock() - start << "[ms]";
-	*/
+	}
+	std::cout << "孤立頂点が" << count << "個あります．修正します．" << std::endl;
+	
+
+	std::cout << "	finish (" << vn << "->" << V.rows() << ")\n	   time:" << clock() - start << "[ms]" << std::endl;
+	
+	
 }
 // 重複頂点の削除
 void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& C) {
@@ -165,6 +158,7 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& C) {
 		}
 	}
 
+	std::set<int> used_vid;
 	//　構成頂点に同一の頂点を含む面の削除
 	std::vector<double> tempvec;
 	std::vector<double> tempvecC;
@@ -178,75 +172,52 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& C) {
 			tempvecC.push_back(C(i, 2));
 
 		}
+		used_vid.insert(F(i, 0));
+		used_vid.insert(F(i, 1));
+		used_vid.insert(F(i, 2));
 	}
 	Eigen::MatrixXi temp = VecToMat(tempvec);
 	Eigen::MatrixXd tempC = VecToMatXd(tempvecC);
 	F = temp;
 	C = tempC;
+
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+	// - - - - - 孤立頂点の削除 - - - - - - - - - - - - - - - 
+	int count = 0;
+	std::vector<int> mask;
+	for (int i = 0; i < V.rows(); i++) {
+		for (auto iter = used_vid.begin(); iter != used_vid.end(); ++iter) {
+			if (i == *iter) {
+				break;
+			}
+			if (i < *iter) {
+				mask.push_back(i);
+				count++;
+				break;
+			}
+		}
+	}
+	std::cout << "孤立頂点が" << count << "個あります．修正します．" << std::endl;
+	remove_row(V, SVJ, mask);
+	//- - - - - 面を構成する頂点のインデックスを更新 - - - - - 
+	// SVJに元の頂点番号→削除後の頂点番号が格納されているので、
+	// ループを回さず一括処理する方法があるはず？
+	
+	for (int i = 0; i < F.rows(); i++)
+	{
+		for (int j = 0; j < F.cols(); j++)
+		{
+			int temp = F(i, j);
+			F(i, j) = SVJ(temp,0);
+		}
+	}
+	std::cout << F.rows() << " " << F.cols() << " " << F(100, 2);
 	std::cout << "	finish (" << vn << "->" << V.rows() << ")\n	   time:" << clock() - start << "[ms]" << std::endl;
 }
 
-//  regacy
-void poly_reduction(Eigen::MatrixXd& V, Eigen::MatrixXi& F, const double ratio, bool is_remesh)
-{
-	// 削減する頂点の数
-	const int max_iter = std::ceil(V.rows() * ratio);
-	std::cout << "max_iter : " << max_iter << std::endl;
 
 
-	// 辺行列を作成
-	Eigen::VectorXi EMAP;
-	Eigen::MatrixXi E, EF, EI;
-	igl::edge_flaps(F, E, EMAP, EF, EI);
-
-
-	// 辺の長さと中点を調べる
-	std::vector< edge_info > Q;
-	for (int e = 0; e < E.rows(); e++) {
-		double cost = e;
-		Eigen::RowVectorXd p(1, 3);
-		igl::shortest_edge_and_midpoint(e, V, F, E, EMAP, EF, EI, cost, p);
-		edge_info Qelement = { e, cost, p };
-		Q.push_back(Qelement);
-	}
-
-	std::sort(Q.begin(), Q.end(), cmp);		//比較関数cmpを使用してsort
-
-
-	// for (auto itr : Q){ std::cout << "index:" << itr.index << " cost:" << itr.cost << std::endl; }
-
-	// 最も短い辺から頂点を結合
-	// ただし位置を同じにするだけなので、面の再構成が必要
-	int count = 0;
-	std::vector<int> collapsed_edge;
-	for (int i = 0; i < max_iter; i++) {
-
-		igl::collapse_edge(Q[i].index, Q[i].midpoint, V, F, E, EMAP, EF, EI);
-
-		collapsed_edge.push_back(Q[i].index);	// legacy
-		count++;
-	}
-	std::cout << count << "個の辺を省略しました．\n";
-
-	// 面を再構成:重複面の削除
-	if (is_remesh) {
-		remesh(V, F);
-	}
-}
-
-void temp(std::vector< edge_info > &Q, Eigen::MatrixXd &V, Eigen::MatrixXi &F, Eigen::MatrixXi &E, Eigen::VectorXi &EMAP, Eigen::MatrixXi &EF, Eigen::MatrixXi &EI) {
-	// - - - - - 辺の長さと中点を調べる - - - - - - -
-	Q = {};
-	for (int e = 0; e < E.rows(); e++) {
-		double cost = e;
-		Eigen::RowVectorXd p(1, 3);
-		igl::shortest_edge_and_midpoint(e, V, F, E, EMAP, EF, EI, cost, p);
-
-		edge_info Qelement = { e, cost, p };
-		Q.push_back(Qelement);
-	}
-	std::sort(Q.begin(), Q.end(), cmp);		// 比較関数cmpを使用してsort
-}
 
 // 範囲を指定してリダクション
 // prim_mask(0or1)が1の面から，順番に削減していく
@@ -407,30 +378,32 @@ void multiple_area_poly_reduction(
 }
 
 /* ライブラリを使用したリダクション
-   おそらく毎回ソートしている？ */
-void temp2(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio) {
+   毎回ソートしている 範囲無し*/
+void reduction(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio, Eigen::VectorXd face_weight) {
 	using namespace std;
 	using namespace Eigen;
 	using namespace igl;
 
-	std::cout << "頂点を削減します" << std::endl;
-  
-  
-	// Prepare array-based edge data structures and priority queue
-	VectorXi EMAP;
-	MatrixXi E,EF,EI;
-	typedef std::set<std::pair<double,int> > PriorityQueue;	// std::set 自動でソートしてくれる型
+	// - - - - - - 宣言 - - - - - - - - - - - - - - - - - 
+	VectorXi  EMAP;
+	MatrixXi  E,EF,EI;
+	MatrixXd  C;												// 辺の中心座標
+	typedef std::set<std::pair<double,int> > PriorityQueue;	    // std::set 自動でソートしてくれる型
 	PriorityQueue Q;
-	std::vector<PriorityQueue::iterator > Qit;
-	
-	MatrixXd C;												// 辺の中心座標
-	int num_collapsed;										// 削減した頂点の数
+	std::vector<PriorityQueue::iterator > Qit;					// 挿入した値へのイテレータ，つまりQit[e]はQの辺ｅについてのデータへのイテレータ
+	int  num_collapsed       = 0;   							// 削減した頂点の数
+	bool something_collapsed = false;
+	// - - - - - - - - - - - - - - - - - - - - - - - - - -
+	const int max_iter =  std::ceil(ratio * float(V.rows()));
+	std::cout << "頂点を削減します   max_iter : " << max_iter << std::endl;
 
-	// Function to reset original mesh and data structures
-    std::cout << "Reset\n";
-	edge_flaps(F,E,EMAP,EF,EI);
+	// - - - - - - 初期化 - - - - - - - - - - - - - - - - - - - - - -
+    edge_flaps(F,E,EMAP,EF,EI);
+	if (EF.minCoeff() == -1) {
+		std::cout << "ERROR : 片翼の辺があります．" << std::endl;
+
+	}
 	Qit.resize(E.rows());
-
 	C.resize(E.rows(),V.cols());
 	VectorXd costs(E.rows());
 	Q.clear();
@@ -441,28 +414,17 @@ void temp2(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio) {
 		shortest_edge_and_midpoint(e, V, F, E, EMAP, EF, EI, cost, p);
 		C.row(e) = p;
 		Qit[e] = Q.insert(std::pair<double, int>(cost, e)).first;	
-		// 挿入した値へのイテレータ，つまりQit[e]はQの辺ｅについてのデータへのイテレータ
 	}
-	num_collapsed = 0;
-
-	std::cout << "V : " << V.rows() << std::endl;
-	std::cout << "F : " << F.rows() << std::endl;
-	std::cout << "E : " << E.rows() << std::endl;
-	std::cout << "VV : " << V.row(100000) << std::endl;
-	std::cout << "FF : " << F.row(100) << std::endl;
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	
+	std::cout << "--- ";
 
-    // If animating then collapse 10% of edges
-	bool something_collapsed = false;
 	// collapse edge
-	//const int max_iter = std::ceil(ratio * Q.size());
-	const int max_iter = 200000;
-	std::cout << "max_iter : " << max_iter << std::endl;
 	int count = 0;
-	for (int j = 0; j < max_iter; j++)
+	while (num_collapsed < max_iter )
 	{
-		if (!collapse_edge(
-			shortest_edge_and_midpoint, V, F, E, EMAP, EF, EI, Q, Qit, C)
+		if (mycollapse::collapse_edge(
+			shortest_edge_and_midpoint, V, F, E, EMAP, EF, EI, Q, Qit, C, face_weight)
 			// 省略した辺はＱから削除される．(Qはそのうえで自動でソート)
 			// 省略のたび，shortest_edge_and_midpointでQが更新される．→ここに重みをつければ...?
 			// Fも補正され，省略された面は[0,0,0]になる．
@@ -470,30 +432,28 @@ void temp2(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio) {
 			// 詳しくはメモ参照
 			)
 		{
-			//std::cout << count  << "--break\n";
-			if (count > max_iter)break;
-			//break;
+			num_collapsed++;
 		}
-		else {
-			//std::cout << "-";
-			count++;
-		}
-		something_collapsed = true;
-		num_collapsed++;
 	}
-	std::cout << "connt : " << count << std::endl;
-
-	std::cout << "V : " << V.rows() << std::endl;
-	std::cout << "F : " << F.rows() << std::endl;
-	std::cout << "E : " << E.rows() << std::endl;
-	std::cout << "VV : " << V.row(100000) << std::endl;
-	std::cout << "FF : " << F.row(100) << std::endl;
+	if (num_collapsed > 0) something_collapsed = true;
 	
+	
+	// 削減後の辺の数．
 	int counts = 0;
 	for (int i = 0; i < F.rows(); i++) {
-		if (!(F(i, 0) == 0 && F(i,1) == 0)) {
-			counts++;
-		}
+		if (!(F(i, 0) == 0 && F(i, 1) == 0)) { counts++; }
 	}
-	std::cout << "count : " << counts << std::endl;
+	std::cout << num_collapsed << "個の頂点を省略しました．(" << V.rows() <<  "->" << V.rows()-num_collapsed << ")" <<  std::endl;
+	
+}
+
+void area_reduction(
+	Eigen::MatrixXd& V,
+	Eigen::MatrixXi& F,
+	const Eigen::VectorXi& prim_mask,  // 面番号→可視性のマップ
+	const double ratio,				   // prim_mask が1の部分のうち何割をさくげんするか
+	bool is_remesh) 
+{
+	
+	
 }
