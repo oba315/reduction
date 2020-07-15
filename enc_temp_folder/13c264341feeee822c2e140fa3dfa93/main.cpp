@@ -229,7 +229,9 @@ int main(int argc, char* argv[])
 	//igl::jet(water.RayLengthMAP, 0, 1, water.C);
 	//water.C.col(0) = water.RayStrengthMAP;
 
-	//igl::jet(water.RayLengthMAP, water.RayLengthMAP.minCoeff(), water.RayLengthMAP.maxCoeff, water.C);
+	//double minn = water.RayLengthMAP.minCoeff();
+	//double maxx = water.RayLengthMAP.maxCoeff();
+	//igl::jet(water.RayLengthMAP, minn, maxx, water.C);
 	Eigen::VectorXd positionMAP(water.F.rows());
 	for (int i = 0; i < water.F.rows(); i++) {
 		positionMAP(i) = water.V(water.F(i, 0), 0) + water.V(water.F(i, 1), 0) + water.V(water.F(i, 2), 0) / 3;

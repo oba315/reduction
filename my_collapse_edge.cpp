@@ -418,7 +418,9 @@ void mycollapse::shortest_edge_and_midpoint(
     Eigen::RowVectorXd& p,
     Eigen::VectorXd& weight /*ñ Ç≈èdÇ›Ç√ÇØ*/)
 {
-    double w = (EF(e, 0) + EF(e, 1)) / 2;
+    //double w = (EF(e, 0) + EF(e, 1)) / 2;
+    double w = (weight(EF(e, 0)) + weight(EF(e, 1))) / 2.;
+    //double w = weight(EF(e, 0));
     if (w == 0) cost = DBL_MAX;
     else {
         cost = (V.row(E(e, 0)) - V.row(E(e, 1))).norm() * (1 / w);
