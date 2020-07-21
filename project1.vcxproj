@@ -71,19 +71,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;C:\Users\piedp\Documents\cpplib\libigl\external\stb;C:\Users\piedp\Documents\cpplib\libigl\out\build\x64-Debug\stb_image;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;C:\Users\piedp\Documents\cpplib\libigl\external\stb;C:\Users\piedp\Documents\cpplib\libigl\out\build\x64-Debug\stb_image;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;C:\Users\piedp\Documents\cpplib\libigl\external\stb;C:\Users\piedp\Documents\cpplib\libigl\out\build\x64-Debug\stb_image;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;$(IncludePath)</IncludePath>
+    <IncludePath>C:\Users\piedp\Documents\cpplib\libigl\include;C:\Users\piedp\Documents\cpplib\libigl\external\eigen;C:\Users\piedp\Documents\cpplib\libigl\external\glad\include;C:\Users\piedp\Documents\cpplib\libigl\external\glfw\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1\include;C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\include;C:\Users\piedp\Documents\cpplib\libigl\external\stb;C:\Users\piedp\Documents\cpplib\libigl\out\build\x64-Debug\stb_image;$(IncludePath)</IncludePath>
     <LibraryPath>C:\Users\piedp\Documents\cpplib\embree\embree-3.6.1.x64.vc14.windows\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\..\..\Users\piedp\Documents\cpplib\libigl\external\stb\igl_stb_image.cpp" />
     <ClCompile Include="bmpIO.cpp" />
     <ClCompile Include="crossing_judgment.cpp" />
     <ClCompile Include="crossing_judgment_with_mapping.cpp" />

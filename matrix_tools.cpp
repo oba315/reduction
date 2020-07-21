@@ -180,3 +180,12 @@ void vec_normalize(Eigen::VectorXd& X) {
 	double range = maxx - minn;
 	X.array() = (X.array() - minn) / range;
 }
+
+
+
+void replace_exception_row(Eigen::VectorXd& X, double exce, double repl) {
+	for (int i = 0; i < X.size(); i++) {
+
+		if (X(i) == exce) { X(i) = repl; }
+	}
+}

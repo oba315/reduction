@@ -7,6 +7,7 @@
 #include <string>
 #include <iostream>
 
+
 using namespace std;
 
 class Colorub {
@@ -60,6 +61,7 @@ public:
 	bool		load(char *filename);
 	bool        load(std::string filename);
 	bool		save(char *filename);
+	bool		save_png(char* filename);
 	
 	void		setType(string name);
 	string		getType();

@@ -42,9 +42,3 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& C);
 
 /* ライブラリを使用したリダクション 毎回ソートしている 範囲の制限なし*/
 void reduction(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio, Eigen::VectorXd face_weight);
-void area_reduction(
-	Eigen::MatrixXd& V,
-	Eigen::MatrixXi& F,
-	const Eigen::VectorXi& prim_mask,  // 面番号→可視性のマップ
-	const double ratio,				   // prim_mask が1の部分のうち何割をさくげんするか
-	bool is_remesh);

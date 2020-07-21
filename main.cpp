@@ -30,8 +30,8 @@ void rendering(Image& image, MyScene myscene) {
 
 	ren::crossing_judgement(image, *myscene.rtcscene_ptr, myscene);
 
-	char picturename[] = "out.bmp";
-	image.save(picturename);
+	char picturename[] = "out.png";
+	image.save_png(picturename);
 
 	clock_t end = clock();
 	const double time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000.0;
@@ -154,8 +154,8 @@ int main(int argc, char* argv[])
 	MyScene myscene;
 	
 	// -------- オブジェクトの読み込み ----------------
-	//std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/river/river_cut.obj";
-	std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/primitive/cylinder.obj";
+	std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/river/river_cut.obj";
+	//std::string mesh_path = "C:/Users/piedp/Documents/Resources/mesh/primitive/sphere_big.obj";
 	//MyObject water(mesh_dir_path + "water_test.obj", false);
 	MyObject water(mesh_path, false);
 	//MyObject water("C:/Users/piedp/Documents/Resources/mesh/river/reduct.3.3.obj", false);
@@ -224,19 +224,24 @@ int main(int argc, char* argv[])
 	Eigen::VectorXi VisblityMap = water.InfRefMAP.col(0);
 	Eigen::VectorXi VisblityMap2 = water.InfRefMAP.col(1);
 
+	replace_exception_row(water.RayStrengthMAP, 0, water.RayStrengthMAP.minCoeff());
+	replace_exception_row(water.RayLengthMAP, 0, water.RayLengthMAP.maxCoeff());
 	//inflectionmap_to_color(VisblityMap, water.C);
 	//water.normalize_RayLengthMAP(); 
 	//igl::jet(water.RayLengthMAP, 0, 1, water.C);
 	//water.C.col(0) = water.RayStrengthMAP;
 
-	//igl::jet(water.RayLengthMAP, water.RayLengthMAP.minCoeff(), water.RayLengthMAP.maxCoeff, water.C);
+	igl::jet(water.RayLengthMAP, water.RayLengthMAP.minCoeff(), water.RayLengthMAP.maxCoeff(), water.C);
+	//igl::jet(water.RayStrengthMAP, water.RayStrengthMAP.minCoeff(), water.RayStrengthMAP.maxCoeff(), water.C);
+	
+	/*
 	Eigen::VectorXd positionMAP(water.F.rows());
 	for (int i = 0; i < water.F.rows(); i++) {
 		positionMAP(i) = water.V(water.F(i, 0), 0) + water.V(water.F(i, 1), 0) + water.V(water.F(i, 2), 0) / 3;
 	}
 	positionMAP = (positionMAP.array() - positionMAP.minCoeff()).array() / (positionMAP.maxCoeff() - positionMAP.minCoeff());
-
-	igl::jet(positionMAP, positionMAP.minCoeff(), positionMAP.maxCoeff(), water.C);
+	*/
+	//igl::jet(positionMAP, positionMAP.minCoeff(), positionMAP.maxCoeff(), water.C);
 	// ------------------------------
 
 	//std::cout << water.RayLengthMAP.topRows(100) << std::endl;
@@ -311,15 +316,9 @@ int main(int argc, char* argv[])
 			for (int i = 0; i < water.InfRefMAP.rows(); i++) {
 				if (water.InfRefMAP(i, 0) == -1) mask(i) = 1.;
 			}
-			//reduction(water.V, water.F, 0.8, mask);
-			//for (int i = 0; i < positionMAP.size(); i++) {
-			//	if (positionMAP(i) < 5 && positionMAP(i) > 0) {
-			//		positionMAP(i) = 1;
-			//	}
-			//	else positionMAP(i) = 0;
-			//}
-			mask = Eigen::VectorXd::Ones(mask.size());
-			reduction(water.V, water.F, 0.8, positionMAP);
+			mask = Eigen::VectorXd::Ones(water.F.rows());
+			reduction(water.V, water.F, 0.8, mask);
+			//reduction(water.V, water.F, 0.8, positionMAP);
 			ratio + 0.1;
 			std::cout << "V.rows() : " << water.V.rows() << std::endl;
 			std::cout << "F.rows() : " << water.F.rows() << std::endl;

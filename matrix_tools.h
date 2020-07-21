@@ -23,3 +23,7 @@ void remove_row2(Eigen::MatrixXd& X, Eigen::MatrixXi& SVJ, std::vector<int> c);
 
 
 void vec_normalize(Eigen::VectorXd& X);
+
+
+
+void replace_exception_row(Eigen::VectorXd& X, double exce, double repl);

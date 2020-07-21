@@ -224,6 +224,7 @@ void remesh(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& C) {
 // 最も短い辺から頂点を結合
 // ただし位置を同じにするだけなので、面の再構成が必要
 // 一つの辺を消した後，長さ順位を更新してないから一度にたくさん消すと微妙な感じになる．
+// 毎回ループしていないのでRegacy
 void limited_area_poly_reduction(
 	Eigen::MatrixXd& V,
 	Eigen::MatrixXi& F,
@@ -399,12 +400,13 @@ void reduction(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio, Eigen::Vecto
 
 	// - - - - - - 初期化 - - - - - - - - - - - - - - - - - - - - - -
     edge_flaps(F,E,EMAP,EF,EI);
+	int count_half_edge = 0;
 	if (EF.minCoeff() == -1) {
 		std::cout << "ERROR : 片翼の辺があります．" << std::endl;
-
+		count_half_edge += 1;
 	}
-	Qit.resize(E.rows());
-	C.resize(E.rows(),V.cols());
+	Qit.resize(E.rows() - count_half_edge);
+	C.resize(E.rows() ,V.cols());
 	VectorXd costs(E.rows());
 	Q.clear();
 	for (int e = 0; e < E.rows(); e++)
@@ -413,6 +415,7 @@ void reduction(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio, Eigen::Vecto
 		RowVectorXd p(1, 3);
 		shortest_edge_and_midpoint(e, V, F, E, EMAP, EF, EI, cost, p);
 		C.row(e) = p;
+		if (EF.row(e).minCoeff() == -1) continue;
 		Qit[e] = Q.insert(std::pair<double, int>(cost, e)).first;	
 	}
 	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -447,13 +450,3 @@ void reduction(Eigen::MatrixXd &V, Eigen::MatrixXi &F, float ratio, Eigen::Vecto
 	
 }
 
-void area_reduction(
-	Eigen::MatrixXd& V,
-	Eigen::MatrixXi& F,
-	const Eigen::VectorXi& prim_mask,  // 面番号→可視性のマップ
-	const double ratio,				   // prim_mask が1の部分のうち何割をさくげんするか
-	bool is_remesh) 
-{
-	
-	
-}

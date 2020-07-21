@@ -60,6 +60,9 @@
     <ClCompile Include="my_collapse_edge.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\Users\piedp\Documents\cpplib\libigl\external\stb\igl_stb_image.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

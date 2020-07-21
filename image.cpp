@@ -63,6 +63,24 @@ bool Image::save(char *filename)
 	}
 	return(writeBmpImage(filename, width, height, 3, &(tmp_pixel[0])));
 }
+#include <igl/png/writePNG.h>
+
+bool Image::save_png(char* filename) {
+	Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> R(height, width);
+	Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> G(height, width);
+	Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> B(height, width);
+	Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> A(height, width);
+	for (int i = 0; i < height; i++) {
+		for (int j = 0; j < width; j++) {
+			R(i, j) = pixel[j * width + i].r;
+			G(i, j) = pixel[j * width + i].g;
+			B(i, j) = pixel[j * width + i].b;
+			A(i, j) = 255;
+		}
+	}
+	igl::png::writePNG(R, G, B, A, filename);
+	return 1;
+}
 //----------------------------------------------------------------------------
 bool Image::load(char *filename)
 {
